@@ -1,0 +1,10 @@
+# Repository Manifest — AllowanceAlley
+- Commit: 25ad22bb86a12fed587279b2466e17120cae9e82
+- Generated: Mon Aug 18 22:17:05 UTC 2025
+
+## Tracked files
+
+| Path | Size (bytes) | Hash (sha256) |
+|---|---:|---|
+| create_manifest.sh | 838 | dde6e5359b37015ced4a208a5ea444144f0de293d26dde4b22f3ee541a9a4383 |
+| repo_manifest.txt | 304 | fd55db0403504d04160c2191b50bf7d2168e20a632af5299cc8073436be63ab0 |
