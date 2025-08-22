@@ -8,6 +8,23 @@
 
 /* Begin PBXBuildFile section */
 		601FC3242E57F61C00261E65 /* Supabase in Frameworks */ = {isa = PBXBuildFile; productRef = 601FC3232E57F61C00261E65 /* Supabase */; };
+		601FC4582E58824600261E65 /* NotificationsService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 601FC4552E58824600261E65 /* NotificationsService.swift */; };
+		601FC4592E58824600261E65 /* AppConfig.swift in Sources */ = {isa = PBXBuildFile; fileRef = 601FC44C2E58824600261E65 /* AppConfig.swift */; };
+		601FC45A2E58824600261E65 /* ImageStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 601FC4532E58824600261E65 /* ImageStore.swift */; };
+		601FC45B2E58824600261E65 /* DashboardView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 601FC4512E58824600261E65 /* DashboardView.swift */; };
+		601FC45C2E58824600261E65 /* AuthService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 601FC44D2E58824600261E65 /* AuthService.swift */; };
+		601FC45D2E58824600261E65 /* Models.swift in Sources */ = {isa = PBXBuildFile; fileRef = 601FC4542E58824600261E65 /* Models.swift */; };
+		601FC45E2E58824600261E65 /* RewardsService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 601FC4562E58824600261E65 /* RewardsService.swift */; };
+		601FC45F2E58824600261E65 /* ChoreService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 601FC44E2E58824600261E65 /* ChoreService.swift */; };
+		601FC4602E58824600261E65 /* FamilyService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 601FC4522E58824600261E65 /* FamilyService.swift */; };
+		601FC4612E58824600261E65 /* CoreDataStack.swift in Sources */ = {isa = PBXBuildFile; fileRef = 601FC4502E58824600261E65 /* CoreDataStack.swift */; };
+		601FC4622E58824600261E65 /* ContentView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 601FC44F2E58824600261E65 /* ContentView.swift */; };
+		601FC4632E58824600261E65 /* SupabaseClient.swift in Sources */ = {isa = PBXBuildFile; fileRef = 601FC4572E58824600261E65 /* SupabaseClient.swift */; };
+		601FC4642E58824600261E65 /* AllowanceAlleyApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = 601FC44B2E58824600261E65 /* AllowanceAlleyApp.swift */; };
+		601FC4692E58857200261E65 /* AppSupabase.swift in Sources */ = {isa = PBXBuildFile; fileRef = 601FC4672E58857200261E65 /* AppSupabase.swift */; };
+		601FC46A2E58857200261E65 /* DatabaseAPI.swift in Sources */ = {isa = PBXBuildFile; fileRef = 601FC4682E58857200261E65 /* DatabaseAPI.swift */; };
+		601FC46C2E5885C900261E65 /* StorageAPI.swift in Sources */ = {isa = PBXBuildFile; fileRef = 601FC46B2E5885C500261E65 /* StorageAPI.swift */; };
+		601FC46E2E5885F000261E65 /* TodayView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 601FC46D2E5885EC00261E65 /* TodayView.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -31,27 +48,36 @@
 		601FC2F12E57F38700261E65 /* AllowanceAlleyNextgen.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = AllowanceAlleyNextgen.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		601FC3002E57F38800261E65 /* AllowanceAlleyNextgenTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = AllowanceAlleyNextgenTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		601FC30A2E57F38800261E65 /* AllowanceAlleyNextgenUITests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = AllowanceAlleyNextgenUITests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
+		601FC44B2E58824600261E65 /* AllowanceAlleyApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AllowanceAlleyApp.swift; sourceTree = "<group>"; };
+		601FC44C2E58824600261E65 /* AppConfig.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppConfig.swift; sourceTree = "<group>"; };
+		601FC44D2E58824600261E65 /* AuthService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AuthService.swift; sourceTree = "<group>"; };
+		601FC44E2E58824600261E65 /* ChoreService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChoreService.swift; sourceTree = "<group>"; };
+		601FC44F2E58824600261E65 /* ContentView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ContentView.swift; sourceTree = "<group>"; };
+		601FC4502E58824600261E65 /* CoreDataStack.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CoreDataStack.swift; sourceTree = "<group>"; };
+		601FC4512E58824600261E65 /* DashboardView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DashboardView.swift; sourceTree = "<group>"; };
+		601FC4522E58824600261E65 /* FamilyService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FamilyService.swift; sourceTree = "<group>"; };
+		601FC4532E58824600261E65 /* ImageStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ImageStore.swift; sourceTree = "<group>"; };
+		601FC4542E58824600261E65 /* Models.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Models.swift; sourceTree = "<group>"; };
+		601FC4552E58824600261E65 /* NotificationsService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NotificationsService.swift; sourceTree = "<group>"; };
+		601FC4562E58824600261E65 /* RewardsService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RewardsService.swift; sourceTree = "<group>"; };
+		601FC4572E58824600261E65 /* SupabaseClient.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SupabaseClient.swift; sourceTree = "<group>"; };
+		601FC4672E58857200261E65 /* AppSupabase.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppSupabase.swift; sourceTree = "<group>"; };
+		601FC4682E58857200261E65 /* DatabaseAPI.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DatabaseAPI.swift; sourceTree = "<group>"; };
+		601FC46B2E5885C500261E65 /* StorageAPI.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StorageAPI.swift; sourceTree = "<group>"; };
+		601FC46D2E5885EC00261E65 /* TodayView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TodayView.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedBuildFileExceptionSet section */
-		601FC38A2E58097300261E65 /* Exceptions for "AllowanceAlleyNextgen" folder in "AllowanceAlleyNextgen" target */ = {
+		601FC41A2E5878D500261E65 /* Exceptions for "Configure" folder in "AllowanceAlleyNextgen" target */ = {
 			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
 			membershipExceptions = (
-				Configure/Info.plist,
+				Info.plist,
 			);
 			target = 601FC2F02E57F38700261E65 /* AllowanceAlleyNextgen */;
 		};
 /* End PBXFileSystemSynchronizedBuildFileExceptionSet section */
 
 /* Begin PBXFileSystemSynchronizedRootGroup section */
-		601FC2F32E57F38700261E65 /* AllowanceAlleyNextgen */ = {
-			isa = PBXFileSystemSynchronizedRootGroup;
-			exceptions = (
-				601FC38A2E58097300261E65 /* Exceptions for "AllowanceAlleyNextgen" folder in "AllowanceAlleyNextgen" target */,
-			);
-			path = AllowanceAlleyNextgen;
-			sourceTree = "<group>";
-		};
 		601FC3032E57F38800261E65 /* AllowanceAlleyNextgenTests */ = {
 			isa = PBXFileSystemSynchronizedRootGroup;
 			path = AllowanceAlleyNextgenTests;
@@ -60,6 +86,14 @@
 		601FC30D2E57F38800261E65 /* AllowanceAlleyNextgenUITests */ = {
 			isa = PBXFileSystemSynchronizedRootGroup;
 			path = AllowanceAlleyNextgenUITests;
+			sourceTree = "<group>";
+		};
+		601FC4192E5878D500261E65 /* Configure */ = {
+			isa = PBXFileSystemSynchronizedRootGroup;
+			exceptions = (
+				601FC41A2E5878D500261E65 /* Exceptions for "Configure" folder in "AllowanceAlleyNextgen" target */,
+			);
+			path = Configure;
 			sourceTree = "<group>";
 		};
 /* End PBXFileSystemSynchronizedRootGroup section */
@@ -93,7 +127,7 @@
 		601FC2E82E57F38700261E65 = {
 			isa = PBXGroup;
 			children = (
-				601FC2F32E57F38700261E65 /* AllowanceAlleyNextgen */,
+				601FC4042E58778400261E65 /* AllowanceAlley */,
 				601FC3032E57F38800261E65 /* AllowanceAlleyNextgenTests */,
 				601FC30D2E57F38800261E65 /* AllowanceAlleyNextgenUITests */,
 				601FC3222E57F61C00261E65 /* Frameworks */,
@@ -118,6 +152,31 @@
 			name = Frameworks;
 			sourceTree = "<group>";
 		};
+		601FC4042E58778400261E65 /* AllowanceAlley */ = {
+			isa = PBXGroup;
+			children = (
+				601FC46B2E5885C500261E65 /* StorageAPI.swift */,
+				601FC46D2E5885EC00261E65 /* TodayView.swift */,
+				601FC44B2E58824600261E65 /* AllowanceAlleyApp.swift */,
+				601FC44C2E58824600261E65 /* AppConfig.swift */,
+				601FC44D2E58824600261E65 /* AuthService.swift */,
+				601FC44E2E58824600261E65 /* ChoreService.swift */,
+				601FC44F2E58824600261E65 /* ContentView.swift */,
+				601FC4502E58824600261E65 /* CoreDataStack.swift */,
+				601FC4512E58824600261E65 /* DashboardView.swift */,
+				601FC4522E58824600261E65 /* FamilyService.swift */,
+				601FC4532E58824600261E65 /* ImageStore.swift */,
+				601FC4542E58824600261E65 /* Models.swift */,
+				601FC4552E58824600261E65 /* NotificationsService.swift */,
+				601FC4562E58824600261E65 /* RewardsService.swift */,
+				601FC4572E58824600261E65 /* SupabaseClient.swift */,
+				601FC4672E58857200261E65 /* AppSupabase.swift */,
+				601FC4682E58857200261E65 /* DatabaseAPI.swift */,
+				601FC4192E5878D500261E65 /* Configure */,
+			);
+			path = AllowanceAlley;
+			sourceTree = "<group>";
+		};
 /* End PBXGroup section */
 
 /* Begin PBXNativeTarget section */
@@ -134,7 +193,7 @@
 			dependencies = (
 			);
 			fileSystemSynchronizedGroups = (
-				601FC2F32E57F38700261E65 /* AllowanceAlleyNextgen */,
+				601FC4192E5878D500261E65 /* Configure */,
 			);
 			name = AllowanceAlleyNextgen;
 			packageProductDependencies = (
@@ -202,9 +261,11 @@
 				TargetAttributes = {
 					601FC2F02E57F38700261E65 = {
 						CreatedOnToolsVersion = 16.4;
+						LastSwiftMigration = 1640;
 					};
 					601FC2FF2E57F38800261E65 = {
 						CreatedOnToolsVersion = 16.4;
+						LastSwiftMigration = 1640;
 						TestTargetID = 601FC2F02E57F38700261E65;
 					};
 					601FC3092E57F38800261E65 = {
@@ -266,6 +327,23 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				601FC4582E58824600261E65 /* NotificationsService.swift in Sources */,
+				601FC4592E58824600261E65 /* AppConfig.swift in Sources */,
+				601FC45A2E58824600261E65 /* ImageStore.swift in Sources */,
+				601FC45B2E58824600261E65 /* DashboardView.swift in Sources */,
+				601FC45C2E58824600261E65 /* AuthService.swift in Sources */,
+				601FC45D2E58824600261E65 /* Models.swift in Sources */,
+				601FC45E2E58824600261E65 /* RewardsService.swift in Sources */,
+				601FC45F2E58824600261E65 /* ChoreService.swift in Sources */,
+				601FC46E2E5885F000261E65 /* TodayView.swift in Sources */,
+				601FC4692E58857200261E65 /* AppSupabase.swift in Sources */,
+				601FC46A2E58857200261E65 /* DatabaseAPI.swift in Sources */,
+				601FC46C2E5885C900261E65 /* StorageAPI.swift in Sources */,
+				601FC4602E58824600261E65 /* FamilyService.swift in Sources */,
+				601FC4612E58824600261E65 /* CoreDataStack.swift in Sources */,
+				601FC4622E58824600261E65 /* ContentView.swift in Sources */,
+				601FC4632E58824600261E65 /* SupabaseClient.swift in Sources */,
+				601FC4642E58824600261E65 /* AllowanceAlleyApp.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -352,7 +430,7 @@
 				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
 				GCC_WARN_UNUSED_FUNCTION = YES;
 				GCC_WARN_UNUSED_VARIABLE = YES;
-				INFOPLIST_FILE = Configure/Info.plist;
+				INFOPLIST_FILE = AllowanceAlley/Configure/Info.plist;
 				IPHONEOS_DEPLOYMENT_TARGET = 18.5;
 				LOCALIZATION_PREFERS_STRING_CATALOGS = YES;
 				MTL_ENABLE_DEBUG_INFO = INCLUDE_SOURCE;
@@ -411,7 +489,7 @@
 				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
 				GCC_WARN_UNUSED_FUNCTION = YES;
 				GCC_WARN_UNUSED_VARIABLE = YES;
-				INFOPLIST_FILE = Configure/Info.plist;
+				INFOPLIST_FILE = AllowanceAlley/Configure/Info.plist;
 				IPHONEOS_DEPLOYMENT_TARGET = 18.5;
 				LOCALIZATION_PREFERS_STRING_CATALOGS = YES;
 				MTL_ENABLE_DEBUG_INFO = NO;
@@ -427,6 +505,7 @@
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				CLANG_ENABLE_MODULES = YES;
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
 				DEVELOPMENT_TEAM = A56T53NJ8T;
@@ -445,6 +524,7 @@
 				PRODUCT_BUNDLE_IDENTIFIER = com.esarks.AllowanceAlleyNextgen;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_OPTIMIZATION_LEVEL = "-Onone";
 				SWIFT_VERSION = 5.0;
 				TARGETED_DEVICE_FAMILY = "1,2";
 			};
@@ -455,6 +535,7 @@
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				CLANG_ENABLE_MODULES = YES;
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
 				DEVELOPMENT_TEAM = A56T53NJ8T;
@@ -482,6 +563,7 @@
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				BUNDLE_LOADER = "$(TEST_HOST)";
+				CLANG_ENABLE_MODULES = YES;
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
 				DEVELOPMENT_TEAM = A56T53NJ8T;
@@ -491,6 +573,8 @@
 				PRODUCT_BUNDLE_IDENTIFIER = com.esarks.AllowanceAlleyNextgenTests;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SWIFT_EMIT_LOC_STRINGS = NO;
+				SWIFT_OBJC_BRIDGING_HEADER = "AllowanceAlleyNextgenTests-Bridging-Header.h";
+				SWIFT_OPTIMIZATION_LEVEL = "-Onone";
 				SWIFT_VERSION = 5.0;
 				TARGETED_DEVICE_FAMILY = "1,2";
 				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/AllowanceAlleyNextgen.app/$(BUNDLE_EXECUTABLE_FOLDER_PATH)/AllowanceAlleyNextgen";
@@ -501,6 +585,7 @@
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				BUNDLE_LOADER = "$(TEST_HOST)";
+				CLANG_ENABLE_MODULES = YES;
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
 				DEVELOPMENT_TEAM = A56T53NJ8T;
@@ -510,6 +595,7 @@
 				PRODUCT_BUNDLE_IDENTIFIER = com.esarks.AllowanceAlleyNextgenTests;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SWIFT_EMIT_LOC_STRINGS = NO;
+				SWIFT_OBJC_BRIDGING_HEADER = "AllowanceAlleyNextgenTests-Bridging-Header.h";
 				SWIFT_VERSION = 5.0;
 				TARGETED_DEVICE_FAMILY = "1,2";
 				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/AllowanceAlleyNextgen.app/$(BUNDLE_EXECUTABLE_FOLDER_PATH)/AllowanceAlleyNextgen";
