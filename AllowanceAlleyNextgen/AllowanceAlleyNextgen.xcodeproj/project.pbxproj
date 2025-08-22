@@ -7,6 +7,7 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		60037C872E58AC6500DFAAB5 /* RootView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 60037C862E58AC6500DFAAB5 /* RootView.swift */; };
 		601FC3242E57F61C00261E65 /* Supabase in Frameworks */ = {isa = PBXBuildFile; productRef = 601FC3232E57F61C00261E65 /* Supabase */; };
 		601FC4582E58824600261E65 /* NotificationsService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 601FC4552E58824600261E65 /* NotificationsService.swift */; };
 		601FC4592E58824600261E65 /* AppConfig.swift in Sources */ = {isa = PBXBuildFile; fileRef = 601FC44C2E58824600261E65 /* AppConfig.swift */; };
@@ -56,6 +57,7 @@
 /* End PBXContainerItemProxy section */
 
 /* Begin PBXFileReference section */
+		60037C862E58AC6500DFAAB5 /* RootView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RootView.swift; sourceTree = "<group>"; };
 		601FC2F12E57F38700261E65 /* AllowanceAlleyNextgen.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = AllowanceAlleyNextgen.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		601FC3002E57F38800261E65 /* AllowanceAlleyNextgenTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = AllowanceAlleyNextgenTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		601FC30A2E57F38800261E65 /* AllowanceAlleyNextgenUITests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = AllowanceAlleyNextgenUITests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
@@ -180,6 +182,7 @@
 				601FC4732E58A16300261E65 /* AddChoreView.swift */,
 				601FC4742E58A16300261E65 /* AddRewardView.swift */,
 				601FC44B2E58824600261E65 /* AllowanceAlleyApp.swift */,
+				60037C862E58AC6500DFAAB5 /* RootView.swift */,
 				601FC44C2E58824600261E65 /* AppConfig.swift */,
 				601FC4752E58A16300261E65 /* ApprovalsView.swift */,
 				601FC4672E58857200261E65 /* AppSupabase.swift */,
@@ -366,6 +369,7 @@
 				601FC45B2E58824600261E65 /* DashboardView.swift in Sources */,
 				601FC45C2E58824600261E65 /* AuthService.swift in Sources */,
 				601FC45D2E58824600261E65 /* Models.swift in Sources */,
+				60037C872E58AC6500DFAAB5 /* RootView.swift in Sources */,
 				601FC45E2E58824600261E65 /* RewardsService.swift in Sources */,
 				601FC45F2E58824600261E65 /* ChoreService.swift in Sources */,
 				601FC46E2E5885F000261E65 /* TodayView.swift in Sources */,

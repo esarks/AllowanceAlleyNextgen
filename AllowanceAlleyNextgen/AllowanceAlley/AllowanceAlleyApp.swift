@@ -15,7 +15,7 @@ struct AllowanceAlleyApp: App {
 
     var body: some Scene {
         WindowGroup {
-            ContentView()
+            RootView()
                 .environmentObject(authService)
                 .environmentObject(familyService)
                 .environmentObject(choreService)
@@ -29,7 +29,10 @@ struct AllowanceAlleyApp: App {
     }
     
     private func setupServices() {
-        authService.initialize()
+        Task {
+            await authService.resetAuthenticationState()
+            authService.initialize()
+        }
         _ = coreDataStack
         _ = supabase
     }
