@@ -134,7 +134,7 @@ struct ChoreBuilderView: View {
         let chore = Chore(
             familyId: family.id,
             title: title,
-            description: description.isEmpty ? nil : description,
+            choreDescription: description.isEmpty ? nil : description, // << fixed key
             points: pointsValue,
             valueCents: valueCentsInt > 0 ? valueCentsInt : nil,
             requiresPhoto: requiresPhoto,
