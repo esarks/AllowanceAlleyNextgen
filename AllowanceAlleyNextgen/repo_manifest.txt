@@ -1,16 +1,16 @@
 # Repository Manifest — AllowanceAlleyNextgen
-- Commit: eb70a6a10aef195f47b8d11caede8cfb27ce5f3a
-- Generated: Fri Aug 22 02:37:18 UTC 2025
+- Commit: 3bcc19f3e34265a9ac433f2bf4a219389bc19ce6
+- Generated: Fri Aug 22 02:50:25 UTC 2025
 
 ## Tracked files
 
 | Path | Size (bytes) | Hash (sha256) |
 |---|---:|---|
-| .DS_Store | 8196 | f8d36c893e28789414810b2ad2180449c310f0621a25ba2534880e458beef4de |
+| .DS_Store | 8196 | 4b8a0bcee6d4a6035dff64adf9da63e6ddf743979eac36e55901886515680e28 |
 | AllowanceAlleyNextgen.xcodeproj/project.pbxproj | 22354 | 0e126c42c47b8b24ba1ae98e90935efaeaee912f8e3e3f2e9ce2cd02a5f01b3b |
 | AllowanceAlleyNextgen.xcodeproj/project.xcworkspace/contents.xcworkspacedata | 135 | 7f3b00b5c3fdb45242d7b87e1e5c4e25d1fa8129a16c94295ecc4e8ea2235c5f |
 | AllowanceAlleyNextgen.xcodeproj/project.xcworkspace/xcshareddata/swiftpm/Package.resolved | 2074 | 1c7ad148abf7547884dd4da7968010e82a92dfab504caf1a530345d9517c4ee0 |
-| AllowanceAlleyNextgen.xcodeproj/project.xcworkspace/xcuserdata/paulmarshall.xcuserdatad/UserInterfaceState.xcuserstate | 52982 | 54d5bf00ae6ce1c8dc5c5138bc8e8c36aab4069c1ce117e3cd5fcf51fc1a4299 |
+| AllowanceAlleyNextgen.xcodeproj/project.xcworkspace/xcuserdata/paulmarshall.xcuserdatad/UserInterfaceState.xcuserstate | 58178 | 5f5a89863fee7b7827a6c41d21416dc6506be26a866652d499d5f50a6397c4df |
 | AllowanceAlleyNextgen.xcodeproj/xcuserdata/paulmarshall.xcuserdatad/xcschemes/xcschememanagement.plist | 356 | 476af4ba809acc9414454d450695e590d315fbc8721704d0860c5be06df741f5 |
 | AllowanceAlleyNextgen/.DS_Store | 6148 | ca462c14ad4e7a9c7bd1da86d00401bebe4499b1b57a0693bfe78796ec15c95e |
 | AllowanceAlleyNextgen/AllowanceAlley/.DS_Store | 6148 | 98f148337b273b2d946550a29e6de50e1a42cea6c3fe7899424f2bc335c1aa8f |
@@ -31,8 +31,10 @@
 | AllowanceAlleyNextgen/AllowanceAlley/Services/SupabaseClient.swift | 307 | 7e25558333b7e638b9809b9e759935303120cd478680e6383e551422a3b785af |
 | AllowanceAlleyNextgen/AllowanceAlley/Views/ApprovalsInboxView.swift | 13974 | 88a48a9f3a178b7f3851c08f34b6ff81ce42d2156098aca04381b0b7c9de2878 |
 | AllowanceAlleyNextgen/AllowanceAlley/Views/ChoreBuilderView.swift | 5920 | 683eb83a09d81bc701a731ed3c985a16c4ec4718322168769e7a6109c673796e |
+| AllowanceAlleyNextgen/AllowanceAlley/Views/ContentView.swift | 18231 | 132a8729599a30c2ed3697ebc1999bbc79f89b0c82f60192ef83bbf291f6cf8c |
 | AllowanceAlleyNextgen/AllowanceAlley/Views/DashboardView.swift | 17398 | 8fffe33b61f771c816894948dd0122cdc6758f4abf536121a70aa99efa786038 |
 | AllowanceAlleyNextgen/AllowanceAlley/Views/FamilyManagerView.swift | 14110 | 1d506399696978b02a81cf1a031631e1046b117993b8155e91ee16b6ef1181eb |
+| AllowanceAlleyNextgen/AllowanceAlley/Views/Item.swift | 254 | a92f7ed063eccad5891f5c185d62dced4d12b986150a8b1db7747bec9b191c6a |
 | AllowanceAlleyNextgen/AllowanceAlley/Views/RewardsShopView.swift | 16006 | 0badd1a564ee0aee8907f35d38d029a01dfa3e58c79c04fdd6ceceec048c3f7f |
 | AllowanceAlleyNextgen/AllowanceAlley/Views/SettingsView.swift | 10650 | 4dbfdc9b79bac834065ce426d3ac9a25f4b0cc7a55f0e7ad03cdebe4e0e14c91 |
 | AllowanceAlleyNextgen/AllowanceAlley/Views/TodayView.swift | 18982 | 2c5f88cf2a4e03f2eaa82e7be1a3e8ce67738da9b3313af5986811bdfd1fc048 |
@@ -41,12 +43,10 @@
 | AllowanceAlleyNextgen/Assets.xcassets/AppIcon.appiconset/Contents.json | 607 | d776cfae1b33325f70befa1b0fc5e5420c660655603409e8588d94fd8fc6e112 |
 | AllowanceAlleyNextgen/Assets.xcassets/Contents.json | 63 | 0fd49ba3c3585c709678e0046a821c3c60685ec7063720d30d3a3448be3a208b |
 | AllowanceAlleyNextgen/Configure/Info.plist | 1399 | 496a7cd28a066704cfa57bec4f368ff7928a9b8cdb98262995a019bb99891cdb |
-| AllowanceAlleyNextgen/ContentView.swift | 1606 | 65261c031e22a563af5987102882bdf204ccdda14c64ea173e822613d67783fb |
-| AllowanceAlleyNextgen/Item.swift | 254 | a92f7ed063eccad5891f5c185d62dced4d12b986150a8b1db7747bec9b191c6a |
 | AllowanceAlleyNextgenTests/AllowanceAlleyNextgenTests.swift | 355 | b8783e32c63161e657fbb730f618518df41cb042b1dd17ff8e6a08f31d1f64d2 |
 | AllowanceAlleyNextgenUITests/AllowanceAlleyNextgenUITests.swift | 1347 | 96e4e39b339516a6ca8b5ed1da87b3fe985707e5ff26a1820b92f7699409905d |
 | AllowanceAlleyNextgenUITests/AllowanceAlleyNextgenUITestsLaunchTests.swift | 860 | bde42f937ed343ea6a5376978e6286e77effd320f0ffb6d32d99e8c01ad96865 |
 | Configure/Info.plist | 1399 | 496a7cd28a066704cfa57bec4f368ff7928a9b8cdb98262995a019bb99891cdb |
 | Scripts/create_manifest.sh | 838 | dde6e5359b37015ced4a208a5ea444144f0de293d26dde4b22f3ee541a9a4383 |
 | Scripts/repo_manifest.txt | 399 | e681577110e5c4fad5aec3edfeeefbe1fd8ae373e4d34c7144a3526d4dfe176a |
-| repo_manifest.txt | 6156 | 949bf8e85ef1d57b7599485ca1579ab6b4c66ff84d71f872aa1ec8d198b8efb2 |
+| repo_manifest.txt | 6199 | 2a72abf3b901e18e08216cad8624c98ff84da7cac24419b84cbd494805343376 |
