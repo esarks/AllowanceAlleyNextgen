@@ -33,9 +33,22 @@
 		601FC30A2E57F38800261E65 /* AllowanceAlleyNextgenUITests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = AllowanceAlleyNextgenUITests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
 
+/* Begin PBXFileSystemSynchronizedBuildFileExceptionSet section */
+		601FC38A2E58097300261E65 /* Exceptions for "AllowanceAlleyNextgen" folder in "AllowanceAlleyNextgen" target */ = {
+			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
+			membershipExceptions = (
+				Configure/Info.plist,
+			);
+			target = 601FC2F02E57F38700261E65 /* AllowanceAlleyNextgen */;
+		};
+/* End PBXFileSystemSynchronizedBuildFileExceptionSet section */
+
 /* Begin PBXFileSystemSynchronizedRootGroup section */
 		601FC2F32E57F38700261E65 /* AllowanceAlleyNextgen */ = {
 			isa = PBXFileSystemSynchronizedRootGroup;
+			exceptions = (
+				601FC38A2E58097300261E65 /* Exceptions for "AllowanceAlleyNextgen" folder in "AllowanceAlleyNextgen" target */,
+			);
 			path = AllowanceAlleyNextgen;
 			sourceTree = "<group>";
 		};
