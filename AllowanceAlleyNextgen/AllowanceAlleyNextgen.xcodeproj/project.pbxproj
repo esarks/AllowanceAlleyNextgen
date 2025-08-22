@@ -19,12 +19,13 @@
 		601FC4602E58824600261E65 /* FamilyService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 601FC4522E58824600261E65 /* FamilyService.swift */; };
 		601FC4612E58824600261E65 /* CoreDataStack.swift in Sources */ = {isa = PBXBuildFile; fileRef = 601FC4502E58824600261E65 /* CoreDataStack.swift */; };
 		601FC4622E58824600261E65 /* ContentView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 601FC44F2E58824600261E65 /* ContentView.swift */; };
-		601FC4632E58824600261E65 /* SupabaseClient.swift in Sources */ = {isa = PBXBuildFile; fileRef = 601FC4572E58824600261E65 /* SupabaseClient.swift */; };
 		601FC4642E58824600261E65 /* AllowanceAlleyApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = 601FC44B2E58824600261E65 /* AllowanceAlleyApp.swift */; };
 		601FC4692E58857200261E65 /* AppSupabase.swift in Sources */ = {isa = PBXBuildFile; fileRef = 601FC4672E58857200261E65 /* AppSupabase.swift */; };
 		601FC46A2E58857200261E65 /* DatabaseAPI.swift in Sources */ = {isa = PBXBuildFile; fileRef = 601FC4682E58857200261E65 /* DatabaseAPI.swift */; };
 		601FC46C2E5885C900261E65 /* StorageAPI.swift in Sources */ = {isa = PBXBuildFile; fileRef = 601FC46B2E5885C500261E65 /* StorageAPI.swift */; };
 		601FC46E2E5885F000261E65 /* TodayView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 601FC46D2E5885EC00261E65 /* TodayView.swift */; };
+		601FC4702E58892200261E65 /* AuthenticationView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 601FC46F2E58891E00261E65 /* AuthenticationView.swift */; };
+		601FC4722E58895400261E65 /* EmailVerificationView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 601FC4712E58894E00261E65 /* EmailVerificationView.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -60,11 +61,12 @@
 		601FC4542E58824600261E65 /* Models.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Models.swift; sourceTree = "<group>"; };
 		601FC4552E58824600261E65 /* NotificationsService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NotificationsService.swift; sourceTree = "<group>"; };
 		601FC4562E58824600261E65 /* RewardsService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RewardsService.swift; sourceTree = "<group>"; };
-		601FC4572E58824600261E65 /* SupabaseClient.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SupabaseClient.swift; sourceTree = "<group>"; };
 		601FC4672E58857200261E65 /* AppSupabase.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppSupabase.swift; sourceTree = "<group>"; };
 		601FC4682E58857200261E65 /* DatabaseAPI.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DatabaseAPI.swift; sourceTree = "<group>"; };
 		601FC46B2E5885C500261E65 /* StorageAPI.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StorageAPI.swift; sourceTree = "<group>"; };
 		601FC46D2E5885EC00261E65 /* TodayView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TodayView.swift; sourceTree = "<group>"; };
+		601FC46F2E58891E00261E65 /* AuthenticationView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AuthenticationView.swift; sourceTree = "<group>"; };
+		601FC4712E58894E00261E65 /* EmailVerificationView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EmailVerificationView.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedBuildFileExceptionSet section */
@@ -168,8 +170,9 @@
 				601FC4532E58824600261E65 /* ImageStore.swift */,
 				601FC4542E58824600261E65 /* Models.swift */,
 				601FC4552E58824600261E65 /* NotificationsService.swift */,
+				601FC46F2E58891E00261E65 /* AuthenticationView.swift */,
+				601FC4712E58894E00261E65 /* EmailVerificationView.swift */,
 				601FC4562E58824600261E65 /* RewardsService.swift */,
-				601FC4572E58824600261E65 /* SupabaseClient.swift */,
 				601FC4672E58857200261E65 /* AppSupabase.swift */,
 				601FC4682E58857200261E65 /* DatabaseAPI.swift */,
 				601FC4192E5878D500261E65 /* Configure */,
@@ -340,9 +343,10 @@
 				601FC46A2E58857200261E65 /* DatabaseAPI.swift in Sources */,
 				601FC46C2E5885C900261E65 /* StorageAPI.swift in Sources */,
 				601FC4602E58824600261E65 /* FamilyService.swift in Sources */,
+				601FC4702E58892200261E65 /* AuthenticationView.swift in Sources */,
+				601FC4722E58895400261E65 /* EmailVerificationView.swift in Sources */,
 				601FC4612E58824600261E65 /* CoreDataStack.swift in Sources */,
 				601FC4622E58824600261E65 /* ContentView.swift in Sources */,
-				601FC4632E58824600261E65 /* SupabaseClient.swift in Sources */,
 				601FC4642E58824600261E65 /* AllowanceAlleyApp.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;

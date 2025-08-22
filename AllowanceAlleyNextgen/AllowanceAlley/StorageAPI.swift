@@ -1,17 +1,22 @@
-//
-//  StorageAPI.swift
-//  AllowanceAlleyNextgen
-//
-//  Created by Paul Marshall on 8/22/25.
-//
-
 import Foundation
 import Supabase
 
-/// Convenience wrapper for Supabase storage buckets
-enum StorageAPI {
-    /// Returns a reference to a storage bucket
-    static func bucket(_ name: String) -> StorageBucketApi {
-        return AppSupabase.shared.client.storage.from(name)
+// Keep ONE definition of StorageAPI in the project.
+final class StorageAPI {
+    static let shared = StorageAPI()
+    private let client = AppSupabase.shared.client
+    private init() {}
+    
+    @discardableResult
+    func uploadImage(_ data: Data, bucket: String, path: String) async throws -> String {
+        // Upload
+        try await client.storage.from(bucket).upload(path: path, file: data)
+        // Get a public URL
+        let publicURL = try client.storage.from(bucket).getPublicURL(path: path)
+        return publicURL.absoluteString
+    }
+    
+    func downloadImage(bucket: String, path: String) async throws -> Data {
+        try await client.storage.from(bucket).download(path: path)
     }
 }

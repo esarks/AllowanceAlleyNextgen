@@ -7,22 +7,31 @@
 
 import SwiftUI
 
-/// Placeholder view so the app compiles.
-/// Replace this with your real dashboard or home screen.
+/// Minimal child-centric "today" screen so the app compiles and runs.
+/// You can flesh this out later with real assignments and points.
 struct TodayView: View {
+    let childId: String
+
     var body: some View {
         VStack(spacing: 16) {
-            Text("TodayView")
-                .font(.largeTitle)
-                .bold()
-            Text("This is just a stub. Replace with your real dashboard.")
+            Text("Today")
+                .font(.largeTitle).bold()
+
+            Text("Child ID: \(childId)")
+                .font(.subheadline)
+                .foregroundStyle(.secondary)
+
+            Divider()
+
+            Text("This is a stub view.\nWire chores, points, and approvals here.")
                 .multilineTextAlignment(.center)
-                .foregroundColor(.secondary)
+                .foregroundStyle(.secondary)
+                .padding(.top, 8)
         }
         .padding()
     }
 }
 
 #Preview {
-    TodayView()
+    TodayView(childId: "demo-child-123")
 }
