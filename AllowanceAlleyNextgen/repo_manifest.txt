@@ -1,36 +1,47 @@
 # Repository Manifest — AllowanceAlleyNextgen
-- Commit: a1a7170132fc91978627351c0bcbbea39f2f0aa6
-- Generated: Fri Aug 22 11:10:04 UTC 2025
+- Commit: 837e9fd9b1ea51adf2d5191e661899e1a46eddb1
+- Generated: Fri Aug 22 13:27:00 UTC 2025
 
 ## Tracked files
 
 | Path | Size (bytes) | Hash (sha256) |
 |---|---:|---|
-| .DS_Store | 6148 | f8f79b1a1d4f073214c29e6cf69c2ac7cb6020a9930ab7e3fd490576607f18e8 |
+| .DS_Store | 8196 | 5326bc28e76a51c1fb9749124abfede8e4efb47be850be646d9ede5fc9206ba3 |
 | AllowanceAlley/.DS_Store | 6148 | b9e6d6c40ab4c207a700274db79ca2d2d6dc6c5e8d90d8f50f1532bff5c1ee55 |
+| AllowanceAlley/AddChoreView.swift | 3943 | 31e52a9fa442988cf54589779644aecfd5d115b932939c051776d2b8f62476ae |
+| AllowanceAlley/AddRewardView.swift | 3241 | 82962b44c1e588f331487ab86c49b0c517c6528e5c9b0d803e24d2b588d118b6 |
 | AllowanceAlley/AllowanceAlleyApp.swift | 1177 | 1d2c94dc0578721293957a6d5cd0defe87e744e3550a983cce9072d5b6eb26bf |
-| AllowanceAlley/AppConfig.swift | 1072 | cd2d44f53de8d8d82103b3e3ffcc76ef4d4d82262b8979a8e72191e96a91873a |
+| AllowanceAlley/AppConfig.swift | 1258 | 9d3e50ab8f62956955cc98131a9ef3b355df04a7e58b2ef68f9490e95dcb00a3 |
 | AllowanceAlley/AppSupabase.swift | 382 | c00e3eb72cee932ae4c16b1c30d159400c773e7a9b5d58a54abaecc0280c69ed |
-| AllowanceAlley/AuthService.swift | 3956 | 0103efd3586c235401b73e7ad7596414675660de47af8fe7c25acc65c1abafc4 |
+| AllowanceAlley/ApprovalsView.swift | 4942 | 3564662d03024201e6fa23d5041ef601d646a0dd14d72c3b49a71823d8f6cb1a |
+| AllowanceAlley/AuthService+Verification.swift | 2145 | 331f9b457efc9ad34da39028236989e5d6db44f48940af0ee551ebd68d5beba9 |
+| AllowanceAlley/AuthService.swift | 4284 | 6ce7ca07bfcdbcfb1695a3c97bed91ceb3d7228af0b18676ec2da792edc9bb58 |
+| AllowanceAlley/AuthenticationView.swift | 9094 | 4b573fc5ea14e9588dab7a9212b6a5e91a5808e4970d9a14af606fc2baed320d |
+| AllowanceAlley/ChildChoresView.swift | 5777 | c1522739af5a143fe35a78ab7c7218ccfcdd59a19227926c7b9536517d6f257c |
+| AllowanceAlley/ChildHomeView.swift | 6729 | 61f632e0d2384c520dc93851f5a01f2aee6e1ccb75bb13279667e070cfee913f |
+| AllowanceAlley/ChildProfileView.swift | 3360 | 9f0cefb0a2b51c55c42f56555e47c27d500679c663d938d5b1e9db8c117e745f |
+| AllowanceAlley/ChildRewardsView.swift | 4814 | 6b8fa81b8b148ae9d81b22503f13c4fd2530e8765335a69bd05f1fffd17217c5 |
 | AllowanceAlley/ChoreService.swift | 3475 | 7b5cc657acf6c0ab593474a89a23c5cefc1802daf793db79212da7137173786b |
 | AllowanceAlley/Configure/Info.plist | 1399 | 496a7cd28a066704cfa57bec4f368ff7928a9b8cdb98262995a019bb99891cdb |
-| AllowanceAlley/ContentView.swift | 1171 | 80af7ba8e57134124d5882aff610cc11809aa467e7e46fb3eaefdc7b91350526 |
+| AllowanceAlley/ContentView.swift | 2675 | 4b8aea84ab47b0b4c84261d5d17d5bcd7080870cba11167e65028238b72344d6 |
 | AllowanceAlley/CoreDataStack.swift | 1023 | c19d075590f1bc4697fa5a745969d6f120021bb005d37427003aa8715c4229af |
-| AllowanceAlley/DashboardView.swift | 1220 | 32b1ed22c7ed465874aa0e9e99412aaf88e04b6a79a30508ac5fd7b58e384f11 |
-| AllowanceAlley/DatabaseAPI.swift | 2421 | 29d813ce0c16753544f78601f8290d8aaa44b99453a2c84daf7f9ad604225d20 |
+| AllowanceAlley/DashboardView.swift | 7553 | b11e5c9739e37d711444664696755753f86b5fb790bd63aa0223f4824afd2dac |
+| AllowanceAlley/DatabaseAPI.swift | 2134 | 74b04bfd6f6d0306561bd567d3d9b20d8ba0bcd9a958e5c71426b89449e15e6a |
+| AllowanceAlley/EmailVerificationView.swift | 2209 | cf8a58673e1f87552d49939cebd90f3ea34d469a29b12914ffc2d7785e99e2a0 |
 | AllowanceAlley/FamilyService.swift | 1889 | b52a2565eaf877df9c6153b8ccf79128cc033cc98b990e62a2cc1c81c34d3ab4 |
 | AllowanceAlley/ImageStore.swift | 3441 | 115fe49f8d1c3d5d45fdf3b945ad5312ab2edce1f26978da7e98fa25183273b3 |
 | AllowanceAlley/Models.swift | 7611 | b06a5ef07df1a7615510875eab72095f9ba9ad067706a1966b68086291e4b504 |
 | AllowanceAlley/NotificationsService.swift | 2610 | 21f0815f98acc444ddabab485224506d954ab705a97cb1141fe6dbc3de6b6edf |
+| AllowanceAlley/ParentChoresView.swift | 3722 | acf90c15ceaf094414511c7f21dff84da2d406489fa081895e44f10edf36d856 |
+| AllowanceAlley/ParentRewardsView.swift | 1658 | f50ad035456d99d4052adddb05c40dd2cd3c69383a9f27c61fbe322e52809b17 |
 | AllowanceAlley/RewardsService.swift | 3975 | 696e3805a18bce4e6054c6d0f4b6bd7f6441ae4f7e12e20010c83d6bb24b3093 |
-| AllowanceAlley/StorageAPI.swift | 381 | d709bdddcf053011ca33b2a358f76928957bd9b9cac42e867c743e5a1a1a2141 |
-| AllowanceAlley/SupabaseClient.swift | 3895 | 70f9addad11a83bfc09f52657d1b3334b8bf48263b7ba4323e21544e33b3e092 |
-| AllowanceAlley/TodayView.swift | 619 | b53c85cdfbfe349dcdfdefc72a7f97f30c628e7f765f9e2971bbde6025652161 |
-| AllowanceAlleyNextgen.xcodeproj/project.pbxproj | 30456 | 35afba85392e1e7db41f1cebecc8752fa68b8ae4b8ba8c93944e6ecfcdc68d95 |
+| AllowanceAlley/StorageAPI.swift | 747 | db441687feed830cf6228189ce6130ee24765a32d17c3398d328467df666e9fd |
+| AllowanceAlley/TodayView.swift | 875 | 2af8ae59023267de86cad9e6fcf5e972c1574a586d8f05976ffdeb313559d484 |
+| AllowanceAlleyNextgen.xcodeproj/project.pbxproj | 35608 | 44c626e833d707d6244134cf1e76b77a25c698189f20d4de02af6651f3737804 |
 | AllowanceAlleyNextgen.xcodeproj/project.xcworkspace/contents.xcworkspacedata | 135 | 7f3b00b5c3fdb45242d7b87e1e5c4e25d1fa8129a16c94295ecc4e8ea2235c5f |
 | AllowanceAlleyNextgen.xcodeproj/project.xcworkspace/xcshareddata/swiftpm/Package.resolved | 2074 | 1c7ad148abf7547884dd4da7968010e82a92dfab504caf1a530345d9517c4ee0 |
-| AllowanceAlleyNextgen.xcodeproj/project.xcworkspace/xcuserdata/paulmarshall.xcuserdatad/UserInterfaceState.xcuserstate | 111068 | 7695213d94ecc12615f2aeeb38f20b2041a217d9358dac53c226c288a82992bd |
+| AllowanceAlleyNextgen.xcodeproj/project.xcworkspace/xcuserdata/paulmarshall.xcuserdatad/UserInterfaceState.xcuserstate | 130674 | fa31e6582ebd48324948a1de3616447d3e4a2818f091ff2107cbb8b5f5f274c6 |
 | AllowanceAlleyNextgen.xcodeproj/xcuserdata/paulmarshall.xcuserdatad/xcschemes/xcschememanagement.plist | 356 | 476af4ba809acc9414454d450695e590d315fbc8721704d0860c5be06df741f5 |
 | Scripts/create_manifest.sh | 838 | dde6e5359b37015ced4a208a5ea444144f0de293d26dde4b22f3ee541a9a4383 |
 | Scripts/repo_manifest.txt | 399 | e681577110e5c4fad5aec3edfeeefbe1fd8ae373e4d34c7144a3526d4dfe176a |
-| repo_manifest.txt | 3456 | 694ba3dc7f823920294db1c5f040248a84fc4a38bd8abb41b6e9d209a786a97d |
+| repo_manifest.txt | 4736 | 31ef71f88e030091ca5b5777281198dd9a212165b08302b10dcc433e511bbf12 |
