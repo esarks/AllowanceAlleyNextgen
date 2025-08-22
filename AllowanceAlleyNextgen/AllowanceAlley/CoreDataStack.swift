@@ -3,6 +3,7 @@ import CoreData
 
 final class CoreDataStack {
     static let shared = CoreDataStack()
+    private init() {}
     
     lazy var persistentContainer: NSPersistentContainer = {
         let container = NSPersistentContainer(name: "AllowanceAlley")
@@ -16,37 +17,13 @@ final class CoreDataStack {
         return container
     }()
     
-    var context: NSManagedObjectContext {
-        persistentContainer.viewContext
-    }
-    
-    var backgroundContext: NSManagedObjectContext {
-        persistentContainer.newBackgroundContext()
-    }
-    
-    private init() {}
+    var context: NSManagedObjectContext { persistentContainer.viewContext }
+    var backgroundContext: NSManagedObjectContext { persistentContainer.newBackgroundContext() }
     
     func save() {
         let context = persistentContainer.viewContext
-        
         if context.hasChanges {
-            do {
-                try context.save()
-            } catch {
-                print("Failed to save context: \(error)")
-            }
-        }
-    }
-    
-    func saveBackground(_ context: NSManagedObjectContext) {
-        context.perform {
-            if context.hasChanges {
-                do {
-                    try context.save()
-                } catch {
-                    print("Failed to save background context: \(error)")
-                }
-            }
+            do { try context.save() } catch { print("Failed to save context: \(error)") }
         }
     }
 }

@@ -1,4 +1,5 @@
 import Foundation
+import CoreGraphics
 
 struct AppConfig {
     static let supabaseURL: String = {
@@ -17,20 +18,16 @@ struct AppConfig {
         return key
     }()
     
-    // App Configuration
     static let appName = "Allowance Alley"
     static let minimumIOSVersion = "15.0"
     
-    // Notification Configuration
     static let defaultDueSoonMinutes = 60
     static let maxNotificationDays = 7
     
-    // Image Configuration
     static let maxImageSizeMB = 5
     static let imageCompressionQuality: CGFloat = 0.8
     static let thumbnailSize = CGSize(width: 200, height: 200)
     
-    // Sync Configuration
     static let syncBatchSize = 50
     static let maxRetryAttempts = 3
     static let syncIntervalSeconds: TimeInterval = 30

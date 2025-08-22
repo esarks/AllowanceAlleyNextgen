@@ -1,7 +1,5 @@
 import Foundation
 
-// MARK: - Core App Models
-
 public enum UserRole: String, Codable, CaseIterable {
     case parent = "parent"
     case child = "child"
@@ -27,19 +25,13 @@ public enum PointsEvent: String, Codable, CaseIterable {
     case penalty = "penalty"
 }
 
-// Family Model
 public struct Family: Identifiable, Codable, Equatable {
     public var id: String
     public var ownerId: String
     public var name: String
     public var createdAt: Date
     
-    public init(
-        id: String = UUID().uuidString,
-        ownerId: String,
-        name: String,
-        createdAt: Date = Date()
-    ) {
+    public init(id: String = UUID().uuidString, ownerId: String, name: String, createdAt: Date = Date()) {
         self.id = id
         self.ownerId = ownerId
         self.name = name
@@ -47,7 +39,6 @@ public struct Family: Identifiable, Codable, Equatable {
     }
 }
 
-// Child Model
 public struct Child: Identifiable, Codable, Equatable {
     public var id: String
     public var parentUserId: String
@@ -56,14 +47,7 @@ public struct Child: Identifiable, Codable, Equatable {
     public var avatarURL: String?
     public var createdAt: Date
     
-    public init(
-        id: String = UUID().uuidString,
-        parentUserId: String,
-        name: String,
-        birthdate: Date? = nil,
-        avatarURL: String? = nil,
-        createdAt: Date = Date()
-    ) {
+    public init(id: String = UUID().uuidString, parentUserId: String, name: String, birthdate: Date? = nil, avatarURL: String? = nil, createdAt: Date = Date()) {
         self.id = id
         self.parentUserId = parentUserId
         self.name = name
@@ -78,7 +62,6 @@ public struct Child: Identifiable, Codable, Equatable {
     }
 }
 
-// Chore Model
 public struct Chore: Identifiable, Codable, Equatable {
     public var id: String
     public var familyId: String
@@ -90,17 +73,7 @@ public struct Chore: Identifiable, Codable, Equatable {
     public var parentUserId: String
     public var createdAt: Date
     
-    public init(
-        id: String = UUID().uuidString,
-        familyId: String,
-        title: String,
-        description: String? = nil,
-        points: Int,
-        requirePhoto: Bool = false,
-        recurrence: String? = nil,
-        parentUserId: String,
-        createdAt: Date = Date()
-    ) {
+    public init(id: String = UUID().uuidString, familyId: String, title: String, description: String? = nil, points: Int, requirePhoto: Bool = false, recurrence: String? = nil, parentUserId: String, createdAt: Date = Date()) {
         self.id = id
         self.familyId = familyId
         self.title = title
@@ -113,7 +86,6 @@ public struct Chore: Identifiable, Codable, Equatable {
     }
 }
 
-// Chore Assignment Model
 public struct ChoreAssignment: Identifiable, Codable, Equatable {
     public var id: String
     public var choreId: String
@@ -121,13 +93,7 @@ public struct ChoreAssignment: Identifiable, Codable, Equatable {
     public var dueDate: Date?
     public var createdAt: Date
     
-    public init(
-        id: String = UUID().uuidString,
-        choreId: String,
-        memberId: String,
-        dueDate: Date? = nil,
-        createdAt: Date = Date()
-    ) {
+    public init(id: String = UUID().uuidString, choreId: String, memberId: String, dueDate: Date? = nil, createdAt: Date = Date()) {
         self.id = id
         self.choreId = choreId
         self.memberId = memberId
@@ -136,7 +102,6 @@ public struct ChoreAssignment: Identifiable, Codable, Equatable {
     }
 }
 
-// Chore Completion Model
 public struct ChoreCompletion: Identifiable, Codable, Equatable {
     public var id: String
     public var assignmentId: String
@@ -147,16 +112,7 @@ public struct ChoreCompletion: Identifiable, Codable, Equatable {
     public var reviewedBy: String?
     public var reviewedAt: Date?
     
-    public init(
-        id: String = UUID().uuidString,
-        assignmentId: String,
-        submittedBy: String? = nil,
-        photoURL: String? = nil,
-        status: CompletionStatus = .pending,
-        completedAt: Date? = nil,
-        reviewedBy: String? = nil,
-        reviewedAt: Date? = nil
-    ) {
+    public init(id: String = UUID().uuidString, assignmentId: String, submittedBy: String? = nil, photoURL: String? = nil, status: CompletionStatus = .pending, completedAt: Date? = nil, reviewedBy: String? = nil, reviewedAt: Date? = nil) {
         self.id = id
         self.assignmentId = assignmentId
         self.submittedBy = submittedBy
@@ -168,7 +124,6 @@ public struct ChoreCompletion: Identifiable, Codable, Equatable {
     }
 }
 
-// Reward Model
 public struct Reward: Identifiable, Codable, Equatable {
     public var id: String
     public var familyId: String
@@ -176,13 +131,7 @@ public struct Reward: Identifiable, Codable, Equatable {
     public var costPoints: Int
     public var createdAt: Date
     
-    public init(
-        id: String = UUID().uuidString,
-        familyId: String,
-        name: String,
-        costPoints: Int,
-        createdAt: Date = Date()
-    ) {
+    public init(id: String = UUID().uuidString, familyId: String, name: String, costPoints: Int, createdAt: Date = Date()) {
         self.id = id
         self.familyId = familyId
         self.name = name
@@ -191,7 +140,6 @@ public struct Reward: Identifiable, Codable, Equatable {
     }
 }
 
-// Reward Redemption Model
 public struct RewardRedemption: Identifiable, Codable, Equatable {
     public var id: String
     public var rewardId: String
@@ -201,15 +149,7 @@ public struct RewardRedemption: Identifiable, Codable, Equatable {
     public var decidedBy: String?
     public var decidedAt: Date?
     
-    public init(
-        id: String = UUID().uuidString,
-        rewardId: String,
-        memberId: String,
-        status: RedemptionStatus = .requested,
-        requestedAt: Date? = nil,
-        decidedBy: String? = nil,
-        decidedAt: Date? = nil
-    ) {
+    public init(id: String = UUID().uuidString, rewardId: String, memberId: String, status: RedemptionStatus = .requested, requestedAt: Date? = nil, decidedBy: String? = nil, decidedAt: Date? = nil) {
         self.id = id
         self.rewardId = rewardId
         self.memberId = memberId
@@ -220,7 +160,6 @@ public struct RewardRedemption: Identifiable, Codable, Equatable {
     }
 }
 
-// Points Ledger Model
 public struct PointsLedger: Identifiable, Codable, Equatable {
     public var id: String
     public var familyId: String
@@ -230,15 +169,7 @@ public struct PointsLedger: Identifiable, Codable, Equatable {
     public var event: PointsEvent
     public var createdAt: Date
     
-    public init(
-        id: String = UUID().uuidString,
-        familyId: String,
-        memberId: String,
-        delta: Int,
-        reason: String? = nil,
-        event: PointsEvent,
-        createdAt: Date = Date()
-    ) {
+    public init(id: String = UUID().uuidString, familyId: String, memberId: String, delta: Int, reason: String? = nil, event: PointsEvent, createdAt: Date = Date()) {
         self.id = id
         self.familyId = familyId
         self.memberId = memberId
@@ -249,7 +180,6 @@ public struct PointsLedger: Identifiable, Codable, Equatable {
     }
 }
 
-// User Profile Model
 public struct AppUser: Identifiable, Codable, Equatable {
     public var id: String
     public var role: UserRole
@@ -258,14 +188,7 @@ public struct AppUser: Identifiable, Codable, Equatable {
     public var familyId: String?
     public var createdAt: Date
     
-    public init(
-        id: String = UUID().uuidString,
-        role: UserRole,
-        email: String? = nil,
-        displayName: String,
-        familyId: String? = nil,
-        createdAt: Date = Date()
-    ) {
+    public init(id: String = UUID().uuidString, role: UserRole, email: String? = nil, displayName: String, familyId: String? = nil, createdAt: Date = Date()) {
         self.id = id
         self.role = role
         self.email = email
@@ -275,7 +198,6 @@ public struct AppUser: Identifiable, Codable, Equatable {
     }
 }
 
-// Dashboard Summary Model
 public struct DashboardSummary: Codable {
     public var todayAssigned = 0
     public var todayCompleted = 0
@@ -295,18 +217,13 @@ public struct ChildStats: Codable {
     public var totalPoints: Int = 0
 }
 
-// MARK: - Helper Extensions
-
 public extension Date {
     func adding(days: Int) -> Date {
         Calendar.current.date(byAdding: .day, value: days, to: self) ?? self
     }
-    
-    var isToday: Bool {
-        Calendar.current.isDateInToday(self)
-    }
-    
-    var isThisWeek: Bool {
-        Calendar.current.isDate(self, equalTo: Date(), toGranularity: .weekOfYear)
+    var isToday: Bool { Calendar.current.isDateInToday(self) }
+    var isThisWeek: Bool { Calendar.current.isDate(self, equalTo: Date(), toGranularity: .weekOfYear) }
+    func ISO8601String() -> String {
+        ISO8601DateFormatter().string(from: self)
     }
 }

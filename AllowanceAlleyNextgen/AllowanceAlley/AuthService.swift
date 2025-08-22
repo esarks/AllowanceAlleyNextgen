@@ -12,7 +12,7 @@ final class AuthService: ObservableObject {
     @Published var isEmailVerified = false
     @Published var pendingVerificationEmail: String?
     
-    private let supabaseClient = SupabaseClient.shared
+    private let supabase = AppSupabase.shared
     private var authStateListener: Task<Void, Never>?
     
     private init() {}
@@ -26,7 +26,7 @@ final class AuthService: ObservableObject {
     
     private func setupAuthStateListener() {
         authStateListener = Task {
-            for await state in supabaseClient.client.auth.authStateChanges {
+            for await state in supabase.client.auth.authStateChanges {
                 await handleAuthStateChange(state)
             }
         }
@@ -40,16 +40,14 @@ final class AuthService: ObservableObject {
             }
         case .signedOut:
             await signOutLocally()
-        case .tokenRefreshed:
-            break
-        default:
-            break
+        case .tokenRefreshed: break
+        default: break
         }
     }
     
     private func checkAuthState() async {
         do {
-            if let session = try await supabaseClient.getCurrentSession(),
+            if let session = try await supabase.client.auth.session,
                let user = session.user {
                 await loadUserProfile(supabaseUser: user)
             }
@@ -59,15 +57,12 @@ final class AuthService: ObservableObject {
     }
     
     func signUp(email: String, password: String, familyName: String) async throws {
-        let response = try await supabaseClient.signUp(email: email, password: password)
-        
+        let response = try await supabase.client.auth.signUp(email: email, password: password)
         pendingVerificationEmail = email
         isEmailVerified = false
-        
         if let user = response.user {
             currentSupabaseUser = user
             isEmailVerified = user.emailConfirmedAt != nil
-            
             if isEmailVerified {
                 try await createUserProfile(user: user, familyName: familyName)
             }
@@ -75,27 +70,20 @@ final class AuthService: ObservableObject {
     }
     
     func signIn(email: String, password: String) async throws {
-        let response = try await supabaseClient.signIn(email: email, password: password)
-        
+        let response = try await supabase.client.auth.signIn(email: email, password: password)
         if let user = response.user {
             await loadUserProfile(supabaseUser: user)
         }
     }
     
     func signInChild(childId: String, pin: String) async throws {
-        // For demo purposes, create a mock child user
-        let child = AppUser(
-            id: childId,
-            role: .child,
-            displayName: "Demo Child"
-        )
-        
+        let child = AppUser(id: childId, role: .child, displayName: "Demo Child")
         currentUser = child
         isAuthenticated = true
     }
     
     func signOut() async throws {
-        try await supabaseClient.signOut()
+        try await supabase.client.auth.signOut()
         await signOutLocally()
     }
     
@@ -108,21 +96,9 @@ final class AuthService: ObservableObject {
     }
     
     private func createUserProfile(user: User, familyName: String) async throws {
-        let family = Family(
-            ownerId: user.id.uuidString,
-            name: familyName
-        )
-        
-        let createdFamily = try await supabaseClient.createFamily(family)
-        
-        let appUser = AppUser(
-            id: user.id.uuidString,
-            role: .parent,
-            email: user.email,
-            displayName: familyName + " Parent",
-            familyId: createdFamily.id
-        )
-        
+        let family = Family(ownerId: user.id.uuidString, name: familyName)
+        let createdFamily = try await DatabaseAPI.shared.createFamily(family)
+        let appUser = AppUser(id: user.id.uuidString, role: .parent, email: user.email, displayName: familyName + " Parent", familyId: createdFamily.id)
         currentUser = appUser
         currentSupabaseUser = user
         isAuthenticated = true
@@ -130,13 +106,7 @@ final class AuthService: ObservableObject {
     }
     
     private func loadUserProfile(supabaseUser: User) async {
-        let appUser = AppUser(
-            id: supabaseUser.id.uuidString,
-            role: .parent,
-            email: supabaseUser.email,
-            displayName: "Parent"
-        )
-        
+        let appUser = AppUser(id: supabaseUser.id.uuidString, role: .parent, email: supabaseUser.email, displayName: "Parent")
         currentUser = appUser
         currentSupabaseUser = supabaseUser
         isAuthenticated = true
@@ -144,7 +114,5 @@ final class AuthService: ObservableObject {
         pendingVerificationEmail = nil
     }
     
-    deinit {
-        authStateListener?.cancel()
-    }
+    deinit { authStateListener?.cancel() }
 }

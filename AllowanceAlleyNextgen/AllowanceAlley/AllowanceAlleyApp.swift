@@ -11,7 +11,7 @@ struct AllowanceAlleyApp: App {
     @StateObject private var imageStore = ImageStore.shared
     
     private let coreDataStack = CoreDataStack.shared
-    private let supabaseClient = SupabaseClient.shared
+    private let supabase = AppSupabase.shared
 
     var body: some Scene {
         WindowGroup {
@@ -30,8 +30,7 @@ struct AllowanceAlleyApp: App {
     
     private func setupServices() {
         authService.initialize()
-        // Keep references alive
         _ = coreDataStack
-        _ = supabaseClient
+        _ = supabase
     }
 }
