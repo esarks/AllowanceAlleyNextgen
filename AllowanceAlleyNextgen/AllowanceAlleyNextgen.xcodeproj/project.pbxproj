@@ -34,24 +34,16 @@
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedBuildFileExceptionSet section */
-		601FC38A2E58097300261E65 /* Exceptions for "AllowanceAlleyNextgen" folder in "AllowanceAlleyNextgen" target */ = {
+		601FC41A2E5878D500261E65 /* Exceptions for "Configure" folder in "AllowanceAlleyNextgen" target */ = {
 			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
 			membershipExceptions = (
-				Configure/Info.plist,
+				Info.plist,
 			);
 			target = 601FC2F02E57F38700261E65 /* AllowanceAlleyNextgen */;
 		};
 /* End PBXFileSystemSynchronizedBuildFileExceptionSet section */
 
 /* Begin PBXFileSystemSynchronizedRootGroup section */
-		601FC2F32E57F38700261E65 /* AllowanceAlleyNextgen */ = {
-			isa = PBXFileSystemSynchronizedRootGroup;
-			exceptions = (
-				601FC38A2E58097300261E65 /* Exceptions for "AllowanceAlleyNextgen" folder in "AllowanceAlleyNextgen" target */,
-			);
-			path = AllowanceAlleyNextgen;
-			sourceTree = "<group>";
-		};
 		601FC3032E57F38800261E65 /* AllowanceAlleyNextgenTests */ = {
 			isa = PBXFileSystemSynchronizedRootGroup;
 			path = AllowanceAlleyNextgenTests;
@@ -60,6 +52,14 @@
 		601FC30D2E57F38800261E65 /* AllowanceAlleyNextgenUITests */ = {
 			isa = PBXFileSystemSynchronizedRootGroup;
 			path = AllowanceAlleyNextgenUITests;
+			sourceTree = "<group>";
+		};
+		601FC4192E5878D500261E65 /* Configure */ = {
+			isa = PBXFileSystemSynchronizedRootGroup;
+			exceptions = (
+				601FC41A2E5878D500261E65 /* Exceptions for "Configure" folder in "AllowanceAlleyNextgen" target */,
+			);
+			path = Configure;
 			sourceTree = "<group>";
 		};
 /* End PBXFileSystemSynchronizedRootGroup section */
@@ -93,7 +93,7 @@
 		601FC2E82E57F38700261E65 = {
 			isa = PBXGroup;
 			children = (
-				601FC2F32E57F38700261E65 /* AllowanceAlleyNextgen */,
+				601FC4042E58778400261E65 /* AllowanceAlley */,
 				601FC3032E57F38800261E65 /* AllowanceAlleyNextgenTests */,
 				601FC30D2E57F38800261E65 /* AllowanceAlleyNextgenUITests */,
 				601FC3222E57F61C00261E65 /* Frameworks */,
@@ -118,6 +118,14 @@
 			name = Frameworks;
 			sourceTree = "<group>";
 		};
+		601FC4042E58778400261E65 /* AllowanceAlley */ = {
+			isa = PBXGroup;
+			children = (
+				601FC4192E5878D500261E65 /* Configure */,
+			);
+			path = AllowanceAlley;
+			sourceTree = "<group>";
+		};
 /* End PBXGroup section */
 
 /* Begin PBXNativeTarget section */
@@ -134,7 +142,7 @@
 			dependencies = (
 			);
 			fileSystemSynchronizedGroups = (
-				601FC2F32E57F38700261E65 /* AllowanceAlleyNextgen */,
+				601FC4192E5878D500261E65 /* Configure */,
 			);
 			name = AllowanceAlleyNextgen;
 			packageProductDependencies = (
@@ -352,7 +360,7 @@
 				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
 				GCC_WARN_UNUSED_FUNCTION = YES;
 				GCC_WARN_UNUSED_VARIABLE = YES;
-				INFOPLIST_FILE = Configure/Info.plist;
+				INFOPLIST_FILE = AllowanceAlley/Configure/Info.plist;
 				IPHONEOS_DEPLOYMENT_TARGET = 18.5;
 				LOCALIZATION_PREFERS_STRING_CATALOGS = YES;
 				MTL_ENABLE_DEBUG_INFO = INCLUDE_SOURCE;
@@ -411,7 +419,7 @@
 				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
 				GCC_WARN_UNUSED_FUNCTION = YES;
 				GCC_WARN_UNUSED_VARIABLE = YES;
-				INFOPLIST_FILE = Configure/Info.plist;
+				INFOPLIST_FILE = AllowanceAlley/Configure/Info.plist;
 				IPHONEOS_DEPLOYMENT_TARGET = 18.5;
 				LOCALIZATION_PREFERS_STRING_CATALOGS = YES;
 				MTL_ENABLE_DEBUG_INFO = NO;
