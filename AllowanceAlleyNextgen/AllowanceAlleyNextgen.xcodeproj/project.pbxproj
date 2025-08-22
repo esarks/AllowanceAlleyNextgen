@@ -37,6 +37,8 @@
 		601FC3202E57F5A300261E65 /* Exceptions for "AllowanceAlleyNextgen" folder in "AllowanceAlleyNextgen" target */ = {
 			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
 			membershipExceptions = (
+				AllowanceAlley/App/AllowanceAlleyApp.swift,
+				AllowanceAlley/Models/AllowanceAlley.xcdatamodeld,
 				Configure/Info.plist,
 			);
 			target = 601FC2F02E57F38700261E65 /* AllowanceAlleyNextgen */;
