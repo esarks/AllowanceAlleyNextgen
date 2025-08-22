@@ -5,88 +5,93 @@ import Supabase
 @MainActor
 final class AuthService: ObservableObject {
     static let shared = AuthService()
-    
+
     @Published var isAuthenticated = false
     @Published var currentUser: AppUser?
     @Published var currentSupabaseUser: User?
     @Published var isEmailVerified = false
     @Published var pendingVerificationEmail: String?
-    
+
     private let supabase = AppSupabase.shared
     private var authStateListener: Task<Void, Never>?
-    
+
     private init() {}
-    
+
+    // MARK: - Bootstrap
     func initialize() {
         Task {
-            await checkAuthState()
-            setupAuthStateListener()
+            await refreshSession()
+            startAuthListener()
         }
     }
-    
-    private func setupAuthStateListener() {
-        authStateListener = Task {
-            for await state in supabase.client.auth.authStateChanges {
-                await handleAuthStateChange(state)
-            }
-        }
-    }
-    
-    private func handleAuthStateChange(_ authState: AuthState) async {
-        switch authState.event {
-        case .signedIn:
-            if let user = authState.session?.user {
-                await loadUserProfile(supabaseUser: user)
-            }
-        case .signedOut:
-            await signOutLocally()
-        case .tokenRefreshed: break
-        default: break
-        }
-    }
-    
-    private func checkAuthState() async {
-        do {
-            if let session = try await supabase.client.auth.session,
-               let user = session.user {
-                await loadUserProfile(supabaseUser: user)
-            }
-        } catch {
-            print("Failed to check auth state: \(error)")
-        }
-    }
-    
+
+    deinit { authStateListener?.cancel() }
+
+    // MARK: - Public auth actions
     func signUp(email: String, password: String, familyName: String) async throws {
         let response = try await supabase.client.auth.signUp(email: email, password: password)
+        let user = response.user
         pendingVerificationEmail = email
-        isEmailVerified = false
-        if let user = response.user {
+        isEmailVerified = (user.emailConfirmedAt != nil)
+
+        if isEmailVerified {
+            try await createUserProfile(user: user, familyName: familyName)
+        } else {
             currentSupabaseUser = user
-            isEmailVerified = user.emailConfirmedAt != nil
-            if isEmailVerified {
-                try await createUserProfile(user: user, familyName: familyName)
-            }
+            isAuthenticated = false
         }
     }
-    
+
     func signIn(email: String, password: String) async throws {
         let response = try await supabase.client.auth.signIn(email: email, password: password)
-        if let user = response.user {
-            await loadUserProfile(supabaseUser: user)
-        }
+        let user = response.user
+        await loadUserProfile(supabaseUser: user)
     }
-    
+
     func signInChild(childId: String, pin: String) async throws {
         let child = AppUser(id: childId, role: .child, displayName: "Demo Child")
         currentUser = child
+        currentSupabaseUser = nil
         isAuthenticated = true
+        isEmailVerified = true
+        pendingVerificationEmail = nil
     }
-    
+
     func signOut() async throws {
         try await supabase.client.auth.signOut()
         await signOutLocally()
     }
-    
+
+    // MARK: - Session / Listener
+    private func refreshSession() async {
+        do {
+            let session = try await supabase.client.auth.session   // non-optional
+            await applySession(session)
+        } catch {
+            await signOutLocally()
+        }
+    }
+
+    private func applySession(_ session: Session) async {
+        await loadUserProfile(supabaseUser: session.user)
+    }
+
+    private func startAuthListener() {
+        authStateListener?.cancel()
+        authStateListener = Task { [weak self] in
+            guard let self else { return }
+            // We don't depend on the element type (avoids AuthState mismatches).
+            do {
+                for try await _ in self.supabase.client.auth.authStateChanges {
+                    await self.refreshSession()
+                }
+            } catch {
+                // Some SDK versions may not support the above stream; ignore and rely on explicit calls.
+            }
+        }
+    }
+
+    // MARK: - Local state transitions
     private func signOutLocally() async {
         currentUser = nil
         currentSupabaseUser = nil
@@ -94,25 +99,37 @@ final class AuthService: ObservableObject {
         isEmailVerified = false
         pendingVerificationEmail = nil
     }
-    
+
     private func createUserProfile(user: User, familyName: String) async throws {
         let family = Family(ownerId: user.id.uuidString, name: familyName)
         let createdFamily = try await DatabaseAPI.shared.createFamily(family)
-        let appUser = AppUser(id: user.id.uuidString, role: .parent, email: user.email, displayName: familyName + " Parent", familyId: createdFamily.id)
+
+        let appUser = AppUser(
+            id: user.id.uuidString,
+            role: .parent,
+            email: user.email,
+            displayName: "\(familyName) Parent",
+            familyId: createdFamily.id
+        )
+
         currentUser = appUser
         currentSupabaseUser = user
         isAuthenticated = true
         pendingVerificationEmail = nil
+        isEmailVerified = (user.emailConfirmedAt != nil)
     }
-    
+
     private func loadUserProfile(supabaseUser: User) async {
-        let appUser = AppUser(id: supabaseUser.id.uuidString, role: .parent, email: supabaseUser.email, displayName: "Parent")
+        let appUser = AppUser(
+            id: supabaseUser.id.uuidString,
+            role: .parent,
+            email: supabaseUser.email,
+            displayName: "Parent"
+        )
         currentUser = appUser
         currentSupabaseUser = supabaseUser
         isAuthenticated = true
-        isEmailVerified = supabaseUser.emailConfirmedAt != nil
+        isEmailVerified = (supabaseUser.emailConfirmedAt != nil)
         pendingVerificationEmail = nil
     }
-    
-    deinit { authStateListener?.cancel() }
 }

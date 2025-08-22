@@ -1,3 +1,4 @@
+
 import SwiftUI
 
 struct ContentView: View {
@@ -12,13 +13,11 @@ struct ContentView: View {
                 if let user = authService.currentUser {
                     switch user.role {
                     case .parent:
-                        DashboardView()
+                        ParentTabView()
                     case .child:
-                        // ✅ TodayView now requires childId
-                        TodayView(childId: user.id)
+                        ChildTabView(childId: user.id)
                     }
                 } else {
-                    // Fallback if user hasn’t loaded yet
                     ProgressView("Loading user…")
                         .task { await authService.initialize() }
                 }
@@ -29,5 +28,67 @@ struct ContentView: View {
             }
         }
         .animation(.easeInOut(duration: 0.25), value: authService.isAuthenticated)
+    }
+}
+
+struct ParentTabView: View {
+    var body: some View {
+        TabView {
+            DashboardView()
+                .tabItem {
+                    Image(systemName: "house.fill")
+                    Text("Home")
+                }
+
+            ParentChoresView()
+                .tabItem {
+                    Image(systemName: "list.clipboard.fill")
+                    Text("Chores")
+                }
+
+            ParentRewardsView()
+                .tabItem {
+                    Image(systemName: "gift.fill")
+                    Text("Rewards")
+                }
+
+            ApprovalsView()
+                .tabItem {
+                    Image(systemName: "checkmark.circle.fill")
+                    Text("Approvals")
+                }
+        }
+    }
+}
+
+struct ChildTabView: View {
+    let childId: String
+
+    var body: some View {
+        TabView {
+            ChildHomeView(childId: childId)
+                .tabItem {
+                    Image(systemName: "house.fill")
+                    Text("Home")
+                }
+
+            ChildChoresView(childId: childId)
+                .tabItem {
+                    Image(systemName: "list.clipboard.fill")
+                    Text("Chores")
+                }
+
+            ChildRewardsView(childId: childId)
+                .tabItem {
+                    Image(systemName: "gift.fill")
+                    Text("Rewards")
+                }
+
+            ChildProfileView(childId: childId)
+                .tabItem {
+                    Image(systemName: "person.fill")
+                    Text("Profile")
+                }
+        }
     }
 }

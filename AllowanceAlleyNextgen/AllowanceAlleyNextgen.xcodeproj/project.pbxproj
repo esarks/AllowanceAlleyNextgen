@@ -26,6 +26,16 @@
 		601FC46E2E5885F000261E65 /* TodayView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 601FC46D2E5885EC00261E65 /* TodayView.swift */; };
 		601FC4702E58892200261E65 /* AuthenticationView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 601FC46F2E58891E00261E65 /* AuthenticationView.swift */; };
 		601FC4722E58895400261E65 /* EmailVerificationView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 601FC4712E58894E00261E65 /* EmailVerificationView.swift */; };
+		601FC47C2E58A16300261E65 /* AddChoreView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 601FC4732E58A16300261E65 /* AddChoreView.swift */; };
+		601FC47D2E58A16300261E65 /* AddRewardView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 601FC4742E58A16300261E65 /* AddRewardView.swift */; };
+		601FC47E2E58A16300261E65 /* ChildChoresView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 601FC4762E58A16300261E65 /* ChildChoresView.swift */; };
+		601FC47F2E58A16300261E65 /* ChildProfileView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 601FC4782E58A16300261E65 /* ChildProfileView.swift */; };
+		601FC4802E58A16300261E65 /* ParentChoresView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 601FC47A2E58A16300261E65 /* ParentChoresView.swift */; };
+		601FC4812E58A16300261E65 /* ParentRewardsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 601FC47B2E58A16300261E65 /* ParentRewardsView.swift */; };
+		601FC4822E58A16300261E65 /* ChildHomeView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 601FC4772E58A16300261E65 /* ChildHomeView.swift */; };
+		601FC4832E58A16300261E65 /* ApprovalsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 601FC4752E58A16300261E65 /* ApprovalsView.swift */; };
+		601FC4842E58A16300261E65 /* ChildRewardsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 601FC4792E58A16300261E65 /* ChildRewardsView.swift */; };
+		601FC4862E58A76C00261E65 /* AuthService+Verification.swift in Sources */ = {isa = PBXBuildFile; fileRef = 601FC4852E58A76C00261E65 /* AuthService+Verification.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -67,6 +77,16 @@
 		601FC46D2E5885EC00261E65 /* TodayView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TodayView.swift; sourceTree = "<group>"; };
 		601FC46F2E58891E00261E65 /* AuthenticationView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AuthenticationView.swift; sourceTree = "<group>"; };
 		601FC4712E58894E00261E65 /* EmailVerificationView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EmailVerificationView.swift; sourceTree = "<group>"; };
+		601FC4732E58A16300261E65 /* AddChoreView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AddChoreView.swift; sourceTree = "<group>"; };
+		601FC4742E58A16300261E65 /* AddRewardView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AddRewardView.swift; sourceTree = "<group>"; };
+		601FC4752E58A16300261E65 /* ApprovalsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ApprovalsView.swift; sourceTree = "<group>"; };
+		601FC4762E58A16300261E65 /* ChildChoresView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChildChoresView.swift; sourceTree = "<group>"; };
+		601FC4772E58A16300261E65 /* ChildHomeView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChildHomeView.swift; sourceTree = "<group>"; };
+		601FC4782E58A16300261E65 /* ChildProfileView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChildProfileView.swift; sourceTree = "<group>"; };
+		601FC4792E58A16300261E65 /* ChildRewardsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChildRewardsView.swift; sourceTree = "<group>"; };
+		601FC47A2E58A16300261E65 /* ParentChoresView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ParentChoresView.swift; sourceTree = "<group>"; };
+		601FC47B2E58A16300261E65 /* ParentRewardsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ParentRewardsView.swift; sourceTree = "<group>"; };
+		601FC4852E58A76C00261E65 /* AuthService+Verification.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "AuthService+Verification.swift"; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedBuildFileExceptionSet section */
@@ -172,6 +192,16 @@
 				601FC4552E58824600261E65 /* NotificationsService.swift */,
 				601FC46F2E58891E00261E65 /* AuthenticationView.swift */,
 				601FC4712E58894E00261E65 /* EmailVerificationView.swift */,
+				601FC4852E58A76C00261E65 /* AuthService+Verification.swift */,
+				601FC4732E58A16300261E65 /* AddChoreView.swift */,
+				601FC4742E58A16300261E65 /* AddRewardView.swift */,
+				601FC4752E58A16300261E65 /* ApprovalsView.swift */,
+				601FC4762E58A16300261E65 /* ChildChoresView.swift */,
+				601FC4772E58A16300261E65 /* ChildHomeView.swift */,
+				601FC4782E58A16300261E65 /* ChildProfileView.swift */,
+				601FC4792E58A16300261E65 /* ChildRewardsView.swift */,
+				601FC47A2E58A16300261E65 /* ParentChoresView.swift */,
+				601FC47B2E58A16300261E65 /* ParentRewardsView.swift */,
 				601FC4562E58824600261E65 /* RewardsService.swift */,
 				601FC4672E58857200261E65 /* AppSupabase.swift */,
 				601FC4682E58857200261E65 /* DatabaseAPI.swift */,
@@ -344,6 +374,16 @@
 				601FC46C2E5885C900261E65 /* StorageAPI.swift in Sources */,
 				601FC4602E58824600261E65 /* FamilyService.swift in Sources */,
 				601FC4702E58892200261E65 /* AuthenticationView.swift in Sources */,
+				601FC47C2E58A16300261E65 /* AddChoreView.swift in Sources */,
+				601FC47D2E58A16300261E65 /* AddRewardView.swift in Sources */,
+				601FC47E2E58A16300261E65 /* ChildChoresView.swift in Sources */,
+				601FC47F2E58A16300261E65 /* ChildProfileView.swift in Sources */,
+				601FC4862E58A76C00261E65 /* AuthService+Verification.swift in Sources */,
+				601FC4802E58A16300261E65 /* ParentChoresView.swift in Sources */,
+				601FC4812E58A16300261E65 /* ParentRewardsView.swift in Sources */,
+				601FC4822E58A16300261E65 /* ChildHomeView.swift in Sources */,
+				601FC4832E58A16300261E65 /* ApprovalsView.swift in Sources */,
+				601FC4842E58A16300261E65 /* ChildRewardsView.swift in Sources */,
 				601FC4722E58895400261E65 /* EmailVerificationView.swift in Sources */,
 				601FC4612E58824600261E65 /* CoreDataStack.swift in Sources */,
 				601FC4622E58824600261E65 /* ContentView.swift in Sources */,
