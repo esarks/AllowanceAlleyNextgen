@@ -34,7 +34,7 @@
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedBuildFileExceptionSet section */
-		601FC3202E57F5A300261E65 /* Exceptions for "AllowanceAlleyNextgen" folder in "AllowanceAlleyNextgen" target */ = {
+		601FC38A2E58097300261E65 /* Exceptions for "AllowanceAlleyNextgen" folder in "AllowanceAlleyNextgen" target */ = {
 			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
 			membershipExceptions = (
 				Configure/Info.plist,
@@ -47,7 +47,7 @@
 		601FC2F32E57F38700261E65 /* AllowanceAlleyNextgen */ = {
 			isa = PBXFileSystemSynchronizedRootGroup;
 			exceptions = (
-				601FC3202E57F5A300261E65 /* Exceptions for "AllowanceAlleyNextgen" folder in "AllowanceAlleyNextgen" target */,
+				601FC38A2E58097300261E65 /* Exceptions for "AllowanceAlleyNextgen" folder in "AllowanceAlleyNextgen" target */,
 			);
 			path = AllowanceAlleyNextgen;
 			sourceTree = "<group>";
