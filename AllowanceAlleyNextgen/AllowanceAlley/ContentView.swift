@@ -2,18 +2,19 @@ import SwiftUI
 
 struct ContentView: View {
     @EnvironmentObject var authService: AuthService
-    @EnvironmentObject var familyService: FamilyService
     
     var body: some View {
         Group {
             if authService.isAuthenticated {
                 if let user = authService.currentUser {
                     switch user.role {
-                    case .parent: DashboardView()
-                    case .child: TodayView(childId: user.id)
+                    case .parent:
+                        ParentMainView()
+                    case .child:
+                        ChildMainView(childId: user.id)
                     }
                 } else {
-                    Text("Loading user data...").onAppear { Task { try? await authService.signOut() } }
+                    LoadingView(message: "Loading user profile...")
                 }
             } else if authService.pendingVerificationEmail != nil {
                 EmailVerificationView()
@@ -21,16 +22,21 @@ struct ContentView: View {
                 AuthenticationView()
             }
         }
-        .animation(.easeInOut(duration: 0.3), value: authService.isAuthenticated)
     }
 }
 
-// Minimal TodayView to satisfy compiler
-struct TodayView: View {
-    let childId: String
+struct LoadingView: View {
+    let message: String
+    
     var body: some View {
-        Text("Today's chores for child \(childId)").padding()
+        VStack(spacing: 16) {
+            ProgressView()
+                .scaleEffect(1.5)
+            Text(message)
+                .font(.subheadline)
+                .foregroundColor(.secondary)
+        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .background(Color(UIColor.systemBackground))
     }
 }
-
-// The rest of Authentication, EmailVerification, etc. come from the original split.

@@ -29,7 +29,9 @@ final class FamilyService: ObservableObject {
     }
     
     func updateChild(_ child: Child) async throws {
-        if let index = children.firstIndex(where: { $0.id == child.id }) { children[index] = child }
+        if let index = children.firstIndex(where: { $0.id == child.id }) {
+            children[index] = child
+        }
     }
     
     func deleteChild(_ child: Child) async throws {
@@ -37,23 +39,16 @@ final class FamilyService: ObservableObject {
     }
 }
 
-public struct FamilyMember: Identifiable, Codable, Equatable {
-    public var id: String
-    public var familyId: String
-    public var userId: String?
-    public var childName: String?
-    public var age: Int?
-    public var role: UserRole
-    public var createdAt: Date?
-}
-
 enum FamilyError: LocalizedError {
     case notAuthenticated
     case familyNotFound
+    
     var errorDescription: String? {
         switch self {
-        case .notAuthenticated: return "Not authenticated"
-        case .familyNotFound: return "Family not found"
+        case .notAuthenticated:
+            return "Not authenticated"
+        case .familyNotFound:
+            return "Family not found"
         }
     }
 }

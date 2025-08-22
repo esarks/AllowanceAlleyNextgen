@@ -6,50 +6,64 @@ final class DatabaseAPI {
     private let client = AppSupabase.shared.client
     private init() {}
     
+    // Families
     func createFamily(_ family: Family) async throws -> Family {
-        let res: [Family] = try await client
+        let inserted: [Family] = try await client
+            .database
             .from("families")
             .insert([
                 "id": family.id,
                 "owner_id": family.ownerId,
-                "name": family.name
-            ], returning: .representation)
+                "name": family.name,
+                "created_at": family.createdAt.ISO8601String()
+            ])
             .select()
             .execute()
             .value
-        guard let created = res.first else { throw NSError(domain: "InsertFailed", code: 1) }
-        return created
+        
+        guard let first = inserted.first else {
+            throw DatabaseError.insertFailed
+        }
+        return first
     }
     
     func fetchFamily(id: String) async throws -> Family? {
-        let res: [Family] = try await client
+        let rows: [Family] = try await client
+            .database
             .from("families")
             .select()
             .eq("id", value: id)
             .execute()
             .value
-        return res.first
+        return rows.first
     }
     
+    // Children
     func createChild(_ child: Child) async throws -> Child {
-        let res: [Child] = try await client
+        let rows: [Child] = try await client
+            .database
             .from("children")
             .insert([
                 "id": child.id,
                 "parent_user_id": child.parentUserId,
                 "name": child.name,
                 "birthdate": child.birthdate?.ISO8601String(),
-                "avatar_url": child.avatarURL
-            ], returning: .representation)
+                "avatar_url": child.avatarURL,
+                "created_at": child.createdAt.ISO8601String()
+            ])
             .select()
             .execute()
             .value
-        guard let created = res.first else { throw NSError(domain: "InsertFailed", code: 1) }
-        return created
+        
+        guard let first = rows.first else {
+            throw DatabaseError.insertFailed
+        }
+        return first
     }
     
     func fetchChildren(parentUserId: String) async throws -> [Child] {
         try await client
+            .database
             .from("children")
             .select()
             .eq("parent_user_id", value: parentUserId)
@@ -58,18 +72,19 @@ final class DatabaseAPI {
     }
 }
 
-final class StorageAPI {
-    static let shared = StorageAPI()
-    private let client = AppSupabase.shared.client
-    private init() {}
+enum DatabaseError: LocalizedError {
+    case insertFailed
+    case notFound
+    case invalidData
     
-    func uploadImage(_ data: Data, bucket: String, path: String) async throws -> String {
-        try await client.storage.from(bucket).upload(path: path, file: data)
-        let publicURL = try client.storage.from(bucket).getPublicURL(path: path)
-        return publicURL.absoluteString
-    }
-    
-    func downloadImage(bucket: String, path: String) async throws -> Data {
-        try await client.storage.from(bucket).download(path: path)
+    var errorDescription: String? {
+        switch self {
+        case .insertFailed:
+            return "Failed to insert data"
+        case .notFound:
+            return "Data not found"
+        case .invalidData:
+            return "Invalid data format"
+        }
     }
 }
