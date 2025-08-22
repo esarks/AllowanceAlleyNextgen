@@ -1,77 +1,87 @@
+
 import Foundation
 import Combine
-import Supabase
 
 @MainActor
 final class AuthService: ObservableObject {
     static let shared = AuthService()
+
     @Published var isAuthenticated = false
     @Published var currentUser: AppUser?
-    @Published var currentSupabaseUser: User?
     @Published var isEmailVerified = false
     @Published var pendingVerificationEmail: String?
-    private let supabase = AppSupabase.shared
+
     private var authStateListener: Task<Void, Never>?
+
     private init() {}
 
-    func initialize() {
-        Task {
-            await refreshSession()
-            startAuthListener()
+    func initialize() async {
+        // Simulate loading persisted session
+        if let savedId = UserDefaults.standard.string(forKey: "auth.userId"),
+           let roleRaw = UserDefaults.standard.string(forKey: "auth.role"),
+           let role = AppUser.Role(rawValue: roleRaw) {
+            self.currentUser = AppUser(id: savedId, role: role, familyId: UserDefaults.standard.string(forKey: "auth.familyId"))
+            self.isAuthenticated = true
+        } else {
+            self.isAuthenticated = false
         }
     }
-    func resetAuthenticationState() async { await signOutLocally() }
-    deinit { authStateListener?.cancel() }
+
+    // MARK: - Parent Email/Password Flow (stubs)
 
     func signUp(email: String, password: String, familyName: String) async throws {
-        let response = try await supabase.client.auth.signUp(email: email, password: password)
-        let user = response.user
-        pendingVerificationEmail = email
-        isEmailVerified = (user.emailConfirmedAt != nil)
-        if isEmailVerified { try await createUserProfile(user: user, familyName: familyName) }
-        else { currentSupabaseUser = user; isAuthenticated = false }
+        // TODO: Integrate with Supabase; for now, create a local session
+        let newUser = AppUser(id: UUID().uuidString, role: .parent, familyId: UUID().uuidString)
+        self.currentUser = newUser
+        self.isAuthenticated = true
+        self.pendingVerificationEmail = nil
+        persistSession(user: newUser)
     }
-    func signIn(email: String, password: String) async throws {
-        let response = try await supabase.client.auth.signIn(email: email, password: password)
-        let user = response.user
-        await loadUserProfile(supabaseUser: user)
-    }
-    func signInChild(childId: String, pin: String) async throws {
-        guard pin.count == 4, pin.allSatisfy(\.isNumber) else { throw AuthError.invalidPin }
-        let child = AppUser(id: childId, role: .child, displayName: "Child User")
-        currentUser = child; currentSupabaseUser = nil; isAuthenticated = true; isEmailVerified = true; pendingVerificationEmail = nil
-    }
-    func signOut() async throws { try await supabase.client.auth.signOut(); await signOutLocally() }
 
-    private func refreshSession() async {
-        do { let session = try await supabase.client.auth.session; await applySession(session) }
-        catch { await signOutLocally() }
+    func signIn(email: String, password: String) async throws {
+        // TODO: Replace with real auth
+        let user = AppUser(id: UUID().uuidString, role: .parent, familyId: UUID().uuidString)
+        self.currentUser = user
+        self.isAuthenticated = true
+        persistSession(user: user)
     }
-    private func applySession(_ session: Session) async { await loadUserProfile(supabaseUser: session.user) }
-    private func startAuthListener() {
-        authStateListener?.cancel()
-        authStateListener = Task { [weak self] in
-            guard let self else { return }
-            do { for try await _ in self.supabase.client.auth.authStateChanges { await self.refreshSession() } } catch {}
+
+    // MARK: - Child PIN Flow (stub)
+
+    func signInChild(childId: String, pin: String) async throws {
+        guard pin.count == 4 else { throw NSError(domain: "Auth", code: 400, userInfo: [NSLocalizedDescriptionKey: "PIN must be 4 digits"]) }
+        let user = AppUser(id: childId, role: .child, familyId: nil)
+        self.currentUser = user
+        self.isAuthenticated = true
+        persistSession(user: user)
+    }
+
+    func signOut() {
+        self.currentUser = nil
+        self.isAuthenticated = false
+        UserDefaults.standard.removeObject(forKey: "auth.userId")
+        UserDefaults.standard.removeObject(forKey: "auth.role")
+        UserDefaults.standard.removeObject(forKey: "auth.familyId")
+    }
+
+    // MARK: - Helpers
+
+    private func persistSession(user: AppUser) {
+        UserDefaults.standard.set(user.id, forKey: "auth.userId")
+        UserDefaults.standard.set(user.role.rawValue, forKey: "auth.role")
+        if let familyId = user.familyId {
+            UserDefaults.standard.set(familyId, forKey: "auth.familyId")
         }
     }
-    private func signOutLocally() async {
-        currentUser = nil; currentSupabaseUser = nil; isAuthenticated = false; isEmailVerified = false; pendingVerificationEmail = nil
-    }
-    private func createUserProfile(user: User, familyName: String) async throws {
-        let family = Family(ownerId: user.id.uuidString, name: familyName)
-        let createdFamily = try await DatabaseAPI.shared.createFamily(family)
-        let appUser = AppUser(id: user.id.uuidString, role: .parent, email: user.email, displayName: "\(familyName) Parent", familyId: createdFamily.id)
-        currentUser = appUser; currentSupabaseUser = user; isAuthenticated = true; pendingVerificationEmail = nil; isEmailVerified = (user.emailConfirmedAt != nil)
-    }
-    private func loadUserProfile(supabaseUser: User) async {
-        let appUser = AppUser(id: supabaseUser.id.uuidString, role: .parent, email: supabaseUser.email, displayName: "Parent")
-        currentUser = appUser; currentSupabaseUser = supabaseUser; isAuthenticated = true; isEmailVerified = (supabaseUser.emailConfirmedAt != nil); pendingVerificationEmail = nil
-    }
 }
-enum AuthError: LocalizedError {
-    case invalidPin, childNotFound
-    var errorDescription: String? {
-        switch self { case .invalidPin: return "Please enter a valid 4-digit PIN"; case .childNotFound: return "Child not found" }
+
+// MARK: - Minimal AppUser to compile
+
+struct AppUser: Identifiable, Equatable {
+    enum Role: String {
+        case parent, child
     }
+    let id: String
+    let role: Role
+    let familyId: String?
 }

@@ -8,6 +8,11 @@
 
 /* Begin PBXBuildFile section */
 		60037C872E58AC6500DFAAB5 /* RootView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 60037C862E58AC6500DFAAB5 /* RootView.swift */; };
+		60037C8F2E58ADA600DFAAB5 /* ChildMainView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 60037C8C2E58ADA600DFAAB5 /* ChildMainView.swift */; };
+		60037C902E58ADA600DFAAB5 /* ParentDashboardView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 60037C8D2E58ADA600DFAAB5 /* ParentDashboardView.swift */; };
+		60037C912E58ADA600DFAAB5 /* ParentMainView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 60037C8E2E58ADA600DFAAB5 /* ParentMainView.swift */; };
+		60037C922E58ADA600DFAAB5 /* AdditionalViews.swift in Sources */ = {isa = PBXBuildFile; fileRef = 60037C8B2E58ADA600DFAAB5 /* AdditionalViews.swift */; };
+		60037C932E58ADA600DFAAB5 /* AddChildView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 60037C8A2E58ADA600DFAAB5 /* AddChildView.swift */; };
 		601FC3242E57F61C00261E65 /* Supabase in Frameworks */ = {isa = PBXBuildFile; productRef = 601FC3232E57F61C00261E65 /* Supabase */; };
 		601FC4582E58824600261E65 /* NotificationsService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 601FC4552E58824600261E65 /* NotificationsService.swift */; };
 		601FC4592E58824600261E65 /* AppConfig.swift in Sources */ = {isa = PBXBuildFile; fileRef = 601FC44C2E58824600261E65 /* AppConfig.swift */; };
@@ -58,6 +63,11 @@
 
 /* Begin PBXFileReference section */
 		60037C862E58AC6500DFAAB5 /* RootView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RootView.swift; sourceTree = "<group>"; };
+		60037C8A2E58ADA600DFAAB5 /* AddChildView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AddChildView.swift; sourceTree = "<group>"; };
+		60037C8B2E58ADA600DFAAB5 /* AdditionalViews.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AdditionalViews.swift; sourceTree = "<group>"; };
+		60037C8C2E58ADA600DFAAB5 /* ChildMainView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChildMainView.swift; sourceTree = "<group>"; };
+		60037C8D2E58ADA600DFAAB5 /* ParentDashboardView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ParentDashboardView.swift; sourceTree = "<group>"; };
+		60037C8E2E58ADA600DFAAB5 /* ParentMainView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ParentMainView.swift; sourceTree = "<group>"; };
 		601FC2F12E57F38700261E65 /* AllowanceAlleyNextgen.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = AllowanceAlleyNextgen.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		601FC3002E57F38800261E65 /* AllowanceAlleyNextgenTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = AllowanceAlleyNextgenTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		601FC30A2E57F38800261E65 /* AllowanceAlleyNextgenUITests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = AllowanceAlleyNextgenUITests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
@@ -179,10 +189,11 @@
 		601FC4042E58778400261E65 /* AllowanceAlley */ = {
 			isa = PBXGroup;
 			children = (
+				60037C8A2E58ADA600DFAAB5 /* AddChildView.swift */,
 				601FC4732E58A16300261E65 /* AddChoreView.swift */,
+				60037C8B2E58ADA600DFAAB5 /* AdditionalViews.swift */,
 				601FC4742E58A16300261E65 /* AddRewardView.swift */,
 				601FC44B2E58824600261E65 /* AllowanceAlleyApp.swift */,
-				60037C862E58AC6500DFAAB5 /* RootView.swift */,
 				601FC44C2E58824600261E65 /* AppConfig.swift */,
 				601FC4752E58A16300261E65 /* ApprovalsView.swift */,
 				601FC4672E58857200261E65 /* AppSupabase.swift */,
@@ -191,6 +202,7 @@
 				601FC4852E58A76C00261E65 /* AuthService+Verification.swift */,
 				601FC4762E58A16300261E65 /* ChildChoresView.swift */,
 				601FC4772E58A16300261E65 /* ChildHomeView.swift */,
+				60037C8C2E58ADA600DFAAB5 /* ChildMainView.swift */,
 				601FC4782E58A16300261E65 /* ChildProfileView.swift */,
 				601FC4792E58A16300261E65 /* ChildRewardsView.swift */,
 				601FC44E2E58824600261E65 /* ChoreService.swift */,
@@ -204,8 +216,11 @@
 				601FC4542E58824600261E65 /* Models.swift */,
 				601FC4552E58824600261E65 /* NotificationsService.swift */,
 				601FC47A2E58A16300261E65 /* ParentChoresView.swift */,
+				60037C8D2E58ADA600DFAAB5 /* ParentDashboardView.swift */,
+				60037C8E2E58ADA600DFAAB5 /* ParentMainView.swift */,
 				601FC47B2E58A16300261E65 /* ParentRewardsView.swift */,
 				601FC4562E58824600261E65 /* RewardsService.swift */,
+				60037C862E58AC6500DFAAB5 /* RootView.swift */,
 				601FC46B2E5885C500261E65 /* StorageAPI.swift */,
 				601FC46D2E5885EC00261E65 /* TodayView.swift */,
 				601FC4192E5878D500261E65 /* Configure */,
@@ -385,6 +400,11 @@
 				601FC4862E58A76C00261E65 /* AuthService+Verification.swift in Sources */,
 				601FC4802E58A16300261E65 /* ParentChoresView.swift in Sources */,
 				601FC4812E58A16300261E65 /* ParentRewardsView.swift in Sources */,
+				60037C8F2E58ADA600DFAAB5 /* ChildMainView.swift in Sources */,
+				60037C902E58ADA600DFAAB5 /* ParentDashboardView.swift in Sources */,
+				60037C912E58ADA600DFAAB5 /* ParentMainView.swift in Sources */,
+				60037C922E58ADA600DFAAB5 /* AdditionalViews.swift in Sources */,
+				60037C932E58ADA600DFAAB5 /* AddChildView.swift in Sources */,
 				601FC4822E58A16300261E65 /* ChildHomeView.swift in Sources */,
 				601FC4832E58A16300261E65 /* ApprovalsView.swift in Sources */,
 				601FC4842E58A16300261E65 /* ChildRewardsView.swift in Sources */,
