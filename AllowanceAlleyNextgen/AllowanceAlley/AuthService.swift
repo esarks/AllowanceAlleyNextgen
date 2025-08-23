@@ -1,106 +1,154 @@
-
 import Foundation
 import Combine
+import Supabase
 
 @MainActor
 final class AuthService: ObservableObject {
     static let shared = AuthService()
 
+    // MARK: - Published state
     @Published var isAuthenticated = false
-    @Published var currentUser: AppUser?
     @Published var isEmailVerified = false
+    @Published var currentUser: AppUser?
+    @Published var currentSupabaseUser: User?
     @Published var pendingVerificationEmail: String?
 
+    // MARK: - Private
+    private let supabase = AppSupabase.shared
     private var authStateListener: Task<Void, Never>?
 
     private init() {}
 
-    func initialize() async {
-        // Load a persisted session if one exists
-        if let savedId = UserDefaults.standard.string(forKey: "auth.userId"),
-           let roleRaw = UserDefaults.standard.string(forKey: "auth.role"),
-           let role = AppUser.Role(rawValue: roleRaw) {
+    // MARK: - Lifecycle
 
-            let displayName = UserDefaults.standard.string(forKey: "auth.displayName") ?? "User"
-            let familyId = UserDefaults.standard.string(forKey: "auth.familyId")
-
-            self.currentUser = AppUser(
-                id: savedId,
-                displayName: displayName,
-                role: role,
-                familyId: familyId
-            )
-            self.isAuthenticated = true
-        } else {
-            self.isAuthenticated = false
+    func initialize() {
+        Task {
+            await refreshSession()
+            startAuthListener()
         }
     }
 
-    // MARK: - Parent Email/Password Flow (stubs)
+    // MARK: - Sign Up / Sign In / Sign Out
 
-    func signUp(email: String, password: String, familyName: String) async throws {
-        // TODO: Integrate with Supabase; for now, create a local session
-        let newUser = AppUser(
-            id: UUID().uuidString,
-            displayName: familyName,
-            role: .parent,
-            familyId: UUID().uuidString
-        )
-        self.currentUser = newUser
-        self.isAuthenticated = true
-        self.pendingVerificationEmail = nil
-        persistSession(user: newUser)
+    /// Standard email/password sign‑up. Supabase emails a 6‑digit OTP.
+    func signUp(email: String, password: String, familyName: String?) async throws {
+        let result = try await supabase.client.auth.signUp(email: email, password: password)
+
+        // In your SDK, result.user is non‑optional.
+        let user = result.user
+        currentSupabaseUser = user
+        isEmailVerified = (user.emailConfirmedAt != nil)
+
+        if isEmailVerified {
+            try await postLoginBootstrap(familyName: familyName)
+        } else {
+            pendingVerificationEmail = email
+            isAuthenticated = false
+        }
     }
 
     func signIn(email: String, password: String) async throws {
-        // TODO: Replace with real auth
-        let user = AppUser(
-            id: UUID().uuidString,
-            displayName: email,
-            role: .parent,
-            familyId: UUID().uuidString
+        _ = try await supabase.client.auth.signIn(email: email, password: password)
+        try await refreshSession()
+    }
+
+    func signOut() async throws {
+        try await supabase.client.auth.signOut()
+        await signOutLocally()
+    }
+
+    // MARK: - OTP Verification (REAL Supabase flow)
+
+    func resendVerificationCode() async throws {
+        guard let email = pendingVerificationEmail else { throw VerificationError.invalid }
+        // Your SDK expects email: before type:
+        try await supabase.client.auth.resend(email: email, type: .signup)
+    }
+
+    func verifyCode(_ code: String) async throws {
+        guard let email = pendingVerificationEmail else { throw VerificationError.invalid }
+
+        try await supabase.client.auth.verifyOTP(
+            email: email,
+            token: code,
+            type: .signup
         )
-        self.currentUser = user
-        self.isAuthenticated = true
-        persistSession(user: user)
+
+        // On success, we should have a valid session/user.
+        let session = try await supabase.client.auth.session
+        await applySession(session)
+        pendingVerificationEmail = nil
+        isAuthenticated = true
+        isEmailVerified = true
+
+        try await postLoginBootstrap(familyName: nil)
     }
 
-    // MARK: - Child PIN Flow (stub)
+    // MARK: - Private
 
-    func signInChild(childId: String, pin: String) async throws {
-        guard pin.count == 4, pin.allSatisfy({ $0.isNumber }) else {
-            throw NSError(domain: "Auth",
-                          code: 400,
-                          userInfo: [NSLocalizedDescriptionKey: "PIN must be 4 digits"])
+    private func postLoginBootstrap(familyName: String?) async throws {
+        // Place any first‑login bootstrap here (ensure family, etc.).
+        let session = try await supabase.client.auth.session
+        await applySession(session)
+        // Example if you later want:
+        // try await FamilyService.shared.ensureFamilyExists(named: familyName)
+    }
+
+    private func refreshSession() async {
+        do {
+            let session = try await supabase.client.auth.session
+            await applySession(session)
+        } catch {
+            await signOutLocally()
         }
-        let user = AppUser(
-            id: childId,
-            displayName: "Child",
-            role: .child,
-            familyId: nil
-        )
-        self.currentUser = user
-        self.isAuthenticated = true
-        persistSession(user: user)
     }
 
-    func signOut() {
-        self.currentUser = nil
-        self.isAuthenticated = false
-        UserDefaults.standard.removeObject(forKey: "auth.userId")
-        UserDefaults.standard.removeObject(forKey: "auth.role")
-        UserDefaults.standard.removeObject(forKey: "auth.familyId")
-        UserDefaults.standard.removeObject(forKey: "auth.displayName")
+    private func applySession(_ session: Session) async {
+        currentSupabaseUser = session.user
+        isEmailVerified = (session.user.emailConfirmedAt != nil)
+        await loadUserProfile(supabaseUser: session.user)
+        isAuthenticated = true
     }
 
-    // MARK: - Helpers
-
-    private func persistSession(user: AppUser) {
-        UserDefaults.standard.set(user.id, forKey: "auth.userId")
-        UserDefaults.standard.set(user.role.rawValue, forKey: "auth.role")
-        if let familyId = user.familyId {
-            UserDefaults.standard.set(familyId, forKey: "auth.familyId")
+    private func startAuthListener() {
+        authStateListener?.cancel()
+        authStateListener = Task { [weak self] in
+            guard let self else { return }
+            // Non‑throwing sequence on recent SDKs
+            for await _ in self.supabase.client.auth.authStateChanges {
+                await self.refreshSession()
+            }
         }
-        UserDefaults.standard.set(user.displayName, forKey: "auth.displayName")
     }
+
+    private func signOutLocally() async {
+        currentUser = nil
+        currentSupabaseUser = nil
+        isAuthenticated = false
+        isEmailVerified = false
+        pendingVerificationEmail = nil
+    }
+
+    // MARK: - Profile load (fallback to keep UI working)
+    /// Replace with your real fetch from `profiles` (if you have one).
+    private func loadUserProfile(supabaseUser: User) async {
+        // If you already map to AppUser elsewhere, keep that instead.
+        // Your AppUser initializer expects: id, role, email, displayName, familyId, createdAt
+        if currentUser == nil {
+            let email = supabaseUser.email ?? ""
+            let display = supabaseUser.userMetadata?["full_name"] as? String
+                ?? email.split(separator: "@").first.map(String.init)
+                ?? "User"
+            currentUser = AppUser(
+                id: supabaseUser.id.uuidString,
+                role: .parent,                // adjust if you store per‑user role
+                email: email,
+                displayName: display,
+                familyId: nil,
+                createdAt: Date()
+            )
+        }
+    }
+
+    enum VerificationError: Error { case invalid }
 }

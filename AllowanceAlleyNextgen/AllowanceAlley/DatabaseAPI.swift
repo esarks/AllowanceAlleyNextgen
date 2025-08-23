@@ -9,14 +9,13 @@ final class DatabaseAPI {
     // Families
     func createFamily(_ family: Family) async throws -> Family {
         let inserted: [Family] = try await client
-            .database
             .from("families")
             .insert([
                 "id": family.id,
                 "owner_id": family.ownerId,
                 "name": family.name,
                 "created_at": family.createdAt.ISO8601String()
-            ])
+            ], returning: .representation)
             .select()
             .execute()
             .value
@@ -29,7 +28,6 @@ final class DatabaseAPI {
     
     func fetchFamily(id: String) async throws -> Family? {
         let rows: [Family] = try await client
-            .database
             .from("families")
             .select()
             .eq("id", value: id)
@@ -41,7 +39,6 @@ final class DatabaseAPI {
     // Children
     func createChild(_ child: Child) async throws -> Child {
         let rows: [Child] = try await client
-            .database
             .from("children")
             .insert([
                 "id": child.id,
@@ -50,7 +47,7 @@ final class DatabaseAPI {
                 "birthdate": child.birthdate?.ISO8601String(),
                 "avatar_url": child.avatarURL,
                 "created_at": child.createdAt.ISO8601String()
-            ])
+            ], returning: .representation)
             .select()
             .execute()
             .value
@@ -63,7 +60,6 @@ final class DatabaseAPI {
     
     func fetchChildren(parentUserId: String) async throws -> [Child] {
         try await client
-            .database
             .from("children")
             .select()
             .eq("parent_user_id", value: parentUserId)

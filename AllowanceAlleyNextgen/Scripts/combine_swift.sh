@@ -52,18 +52,15 @@ fi
 {
   echo "# $TITLE"
   echo
-  echo "_Generated on $(date) from directory: $DIR_"
+  echo "_Generated on $(date) from directory: ${DIR}_"
   echo
 } > "$OUT"
 
 # --- Collect & append file sections (streamed) ---
 COUNT=0
-# Use process substitution so the while loop runs in the current shell (COUNT persists).
 while IFS= read -r FILE; do
-  # Skip empty lines defensively
   [[ -n "${FILE:-}" ]] || continue
 
-  # Build a path relative to DIR when possible
   case "$FILE" in
     "$DIR"/*) REL="${FILE#$DIR/}";;
     *)        REL="$FILE";;
@@ -80,8 +77,6 @@ while IFS= read -r FILE; do
 
   COUNT=$((COUNT + 1))
 done < <(
-  # Find, exclude common build/vendor dirs, sort deterministically.
-  # If find returns nothing, this still exits 0 (thanks to `|| true`)
   find "$DIR" -type f -name "*.swift" \
     ! -path "*/Pods/*" \
     ! -path "*/Carthage/*" \
@@ -93,7 +88,6 @@ done < <(
 
 if [[ $COUNT -eq 0 ]]; then
   echo "No .swift files found under $DIR"
-  # Leave the header-only file in place; exit success.
   exit 0
 fi
 
