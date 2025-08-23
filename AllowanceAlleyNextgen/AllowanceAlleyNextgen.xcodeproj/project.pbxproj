@@ -30,6 +30,7 @@
 		60871D422E58C62C00A93CEF /* SharedComponents.swift in Sources */ = {isa = PBXBuildFile; fileRef = 60871D412E58C62800A93CEF /* SharedComponents.swift */; };
 		609E3DF82E59CFAA0007A3EF /* MainsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 609E3DF72E59CFA60007A3EF /* MainsView.swift */; };
 		609E3DFA2E59D0FF0007A3EF /* ParentSheets.swift in Sources */ = {isa = PBXBuildFile; fileRef = 609E3DF92E59D0FB0007A3EF /* ParentSheets.swift */; };
+		609E3E042E5A43B00007A3EF /* AnyEncodable.swift in Sources */ = {isa = PBXBuildFile; fileRef = 609E3E032E5A43B00007A3EF /* AnyEncodable.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -75,6 +76,7 @@
 		60871D412E58C62800A93CEF /* SharedComponents.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SharedComponents.swift; sourceTree = "<group>"; };
 		609E3DF72E59CFA60007A3EF /* MainsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MainsView.swift; sourceTree = "<group>"; };
 		609E3DF92E59D0FB0007A3EF /* ParentSheets.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ParentSheets.swift; sourceTree = "<group>"; };
+		609E3E032E5A43B00007A3EF /* AnyEncodable.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AnyEncodable.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedBuildFileExceptionSet section */
@@ -178,6 +180,7 @@
 				601FC4502E58824600261E65 /* CoreDataStack.swift */,
 				601FC4512E58824600261E65 /* DashboardView.swift */,
 				601FC4682E58857200261E65 /* DatabaseAPI.swift */,
+				609E3E032E5A43B00007A3EF /* AnyEncodable.swift */,
 				60871D372E58BF6600A93CEF /* EmailVerificationView.swift */,
 				601FC4522E58824600261E65 /* FamilyService.swift */,
 				601FC4532E58824600261E65 /* ImageStore.swift */,
@@ -363,6 +366,7 @@
 				60871D3E2E58C5EB00A93CEF /* AuthenticationView.swift in Sources */,
 				601FC4622E58824600261E65 /* ContentView.swift in Sources */,
 				60871D3A2E58BF9A00A93CEF /* AdditionalViews.swift in Sources */,
+				609E3E042E5A43B00007A3EF /* AnyEncodable.swift in Sources */,
 				601FC4642E58824600261E65 /* AllowanceAlleyApp.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;

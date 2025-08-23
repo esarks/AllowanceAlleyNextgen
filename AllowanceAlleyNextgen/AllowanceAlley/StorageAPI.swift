@@ -1,28 +1,24 @@
+
 import Foundation
 import Supabase
 
-final class StorageAPI {
+struct StorageAPI {
     static let shared = StorageAPI()
     private let client = AppSupabase.shared.client
+
     private init() {}
 
-    @discardableResult
-    func uploadImage(_ data: Data, bucket: String, path: String) async throws -> String {
-        // NEW API: upload(_:data:options:)
-        try await client.storage
-            .from(bucket)
-            .upload(path, data: data)
-
-        let publicURL = try client.storage
-            .from(bucket)
-            .getPublicURL(path: path)
-
-        return publicURL.absoluteString
+    func publicURL(bucket: String, path: String) -> URL? {
+        return (try? client.storage.from(bucket).getPublicURL(path: path)) ?? nil
     }
 
-    func downloadImage(bucket: String, path: String) async throws -> Data {
-        try await client.storage
-            .from(bucket)
-            .download(path: path)
+    func signedURL(bucket: String, path: String, expiresIn seconds: Int = 3600) async -> URL? {
+        do {
+            let url = try await client.storage.from(bucket).createSignedURL(path: path, expiresIn: seconds)
+            return url
+        } catch {
+            print("signedURL error:", error)
+            return nil
+        }
     }
 }

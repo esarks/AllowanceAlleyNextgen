@@ -1,3 +1,4 @@
+
 import Foundation
 import Combine
 
@@ -14,9 +15,7 @@ final class ChoreService: ObservableObject {
     private let db = DatabaseAPI.shared
     private init() {}
 
-    // Load everything needed for the dashboard
-    func loadAll() async {
-        guard let familyId = auth.currentUser?.familyId ?? auth.currentUser?.id else { return }
+    func loadAll(for familyId: String) async {
         async let a = loadChores(familyId: familyId)
         async let b = loadAssignments(familyId: familyId)
         async let c = loadCompletions(familyId: familyId)
@@ -28,51 +27,44 @@ final class ChoreService: ObservableObject {
     }
 
     func loadAssignments(familyId: String) async {
-        do { assignments = try await db.fetchAssignments(familyId: familyId) } catch { print(error) }
+        do { assignments = try await db.fetchAssignmentsForFamily(familyId: familyId) } catch { print(error) }
     }
 
     func loadCompletions(familyId: String) async {
         do {
-            completions = try await db.fetchCompletions(familyId: familyId)
+            completions = try await db.fetchCompletionsForFamily(familyId: familyId)
             pendingApprovals = completions.filter { $0.status == .pending }
         } catch { print(error) }
     }
 
-    // Create a chore and optional assignments
-    func createChore(_ chore: Chore, assignedTo childIds: [String]) async throws {
-        let created = try await db.createChore(chore)
+    func createChore(familyId: String, title: String, description: String?, points: Int, requirePhoto: Bool, recurrence: String?) async throws -> Chore {
+        guard let parentId = auth.currentUser?.id else { throw NSError(domain: "Auth", code: 401) }
+        let created = try await db.createChore(familyId: familyId, title: title, description: description, points: points, requirePhoto: requirePhoto, recurrence: recurrence, parentUserId: parentId)
         chores.append(created)
-
-        for id in childIds {
-            let a = try await db.assignChore(choreId: created.id, memberId: id, due: Date().addingTimeInterval(24*3600))
-            assignments.append(a)
-        }
+        return created
     }
 
-    // Child marks complete (optionally with photo URL you’ve stored in Storage)
+    func assignChore(choreId: String, memberId: String, due: Date?) async throws {
+        let a = try await db.assignChore(choreId: choreId, memberId: memberId, due: due)
+        assignments.append(a)
+    }
+
     func completeChore(assignmentId: String, photoURL: String? = nil) async throws {
-        let completion = ChoreCompletion(
-            assignmentId: assignmentId,
-            submittedBy: auth.currentUser?.id,
-            photoURL: photoURL,
-            status: .pending,
-            completedAt: Date()
-        )
-        let saved = try await db.submitCompletion(completion)
+        let submittedBy = auth.currentUser?.id
+        let saved = try await db.submitCompletion(assignmentId: assignmentId, submittedBy: submittedBy, photoURL: photoURL)
         completions.insert(saved, at: 0)
         pendingApprovals.insert(saved, at: 0)
     }
 
-    // Parent approves / rejects
     func approveCompletion(_ completion: ChoreCompletion) async throws {
         guard let reviewer = auth.currentUser?.id else { return }
-        let updated = try await db.reviewCompletion(id: completion.id, status: "approved", reviewedBy: reviewer)
+        let updated = try await db.reviewCompletion(id: completion.id, status: .approved, reviewedBy: reviewer)
         replaceCompletion(updated)
     }
 
     func rejectCompletion(_ completion: ChoreCompletion) async throws {
         guard let reviewer = auth.currentUser?.id else { return }
-        let updated = try await db.reviewCompletion(id: completion.id, status: "rejected", reviewedBy: reviewer)
+        let updated = try await db.reviewCompletion(id: completion.id, status: .rejected, reviewedBy: reviewer)
         replaceCompletion(updated)
     }
 
@@ -80,14 +72,5 @@ final class ChoreService: ObservableObject {
         if let i = completions.firstIndex(where: { $0.id == updated.id }) { completions[i] = updated }
         pendingApprovals.removeAll { $0.id == updated.id || updated.status != .pending }
         if updated.status == .pending { pendingApprovals.append(updated) }
-    }
-
-    // Utility used by ChildChoresView in some builds
-    func getTodayAssignments(for memberId: String) -> [ChoreAssignment] {
-        let cal = Calendar.current
-        return assignments.filter { a in
-            guard let due = a.dueDate else { return false }
-            return cal.isDateInToday(due) && a.memberId == memberId
-        }
     }
 }

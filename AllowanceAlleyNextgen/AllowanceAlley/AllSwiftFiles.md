@@ -1,6 +1,6 @@
 # Swift Sources
 
-_Generated on Sat Aug 23 13:49:54 EDT 2025 from directory: ._
+_Generated on Sat Aug 23 14:48:16 EDT 2025 from directory: ._
 
 ## File: AdditionalViews.swift
 
@@ -203,16 +203,15 @@ struct RewardsView: View {
 ## File: AllowanceAlleyApp.swift
 
 ```swift
+
 import SwiftUI
 
 @main
 struct AllowanceAlleyApp: App {
-    @StateObject private var authService          = AuthService.shared
-    @StateObject private var familyService        = FamilyService.shared
-    @StateObject private var choreService         = ChoreService.shared
-    @StateObject private var rewardsService       = RewardsService.shared
-    @StateObject private var notificationsService = NotificationsService.shared
-    @StateObject private var imageStore           = ImageStore.shared
+    @StateObject private var authService = AuthService.shared
+    @StateObject private var familyService = FamilyService.shared
+    @StateObject private var choreService = ChoreService.shared
+    @StateObject private var rewardsService = RewardsService.shared
 
     var body: some Scene {
         WindowGroup {
@@ -221,12 +220,29 @@ struct AllowanceAlleyApp: App {
                 .environmentObject(familyService)
                 .environmentObject(choreService)
                 .environmentObject(rewardsService)
-                .environmentObject(notificationsService)
-                .environmentObject(imageStore)
-                .onAppear {
-                    authService.initialize()
+                .task {
+                    await authService.initialize()
                 }
         }
+    }
+}
+```
+
+## File: AnyEncodable.swift
+
+```swift
+
+import Foundation
+
+public struct AnyEncodable: Encodable {
+    private let _encode: (Encoder) throws -> Void
+
+    public init<T: Encodable>(_ value: T) {
+        _encode = value.encode
+    }
+
+    public func encode(to encoder: Encoder) throws {
+        try _encode(encoder)
     }
 }
 ```
@@ -273,23 +289,34 @@ struct AppConfig {
 ## File: AppSupabase.swift
 
 ```swift
+
 import Foundation
 import Supabase
+
+enum AppEnv {
+    static var supabaseURL: URL {
+        if let s = ProcessInfo.processInfo.environment["SUPABASE_URL"], let u = URL(string: s) {
+            return u
+        }
+        if let s = Bundle.main.object(forInfoDictionaryKey: "SUPABASE_URL") as? String, let u = URL(string: s) {
+            return u
+        }
+        return URL(string: "https://YOUR-PROJECT.supabase.co")!
+    }
+
+    static var supabaseAnonKey: String {
+        if let k = ProcessInfo.processInfo.environment["SUPABASE_ANON_KEY"] { return k }
+        if let k = Bundle.main.object(forInfoDictionaryKey: "SUPABASE_ANON_KEY") as? String { return k }
+        return "YOUR-ANON-KEY"
+    }
+}
 
 final class AppSupabase {
     static let shared = AppSupabase()
     let client: SupabaseClient
-    
+
     private init() {
-        guard let url = URL(string: AppConfig.supabaseURL) else {
-            fatalError("Invalid SUPABASE_URL")
-        }
-        
-        // Updated Supabase client initialization
-        self.client = SupabaseClient(
-            supabaseURL: url,
-            supabaseKey: AppConfig.supabaseAnonKey
-        )
+        client = SupabaseClient(supabaseURL: AppEnv.supabaseURL, supabaseKey: AppEnv.supabaseAnonKey)
     }
 }
 ```
@@ -297,6 +324,8 @@ final class AppSupabase {
 ## File: AuthService.swift
 
 ```swift
+
+// AuthService.swift — Supabase Swift v2 compatible
 import Foundation
 import Combine
 import Supabase
@@ -305,225 +334,106 @@ import Supabase
 final class AuthService: ObservableObject {
     static let shared = AuthService()
 
-    // MARK: - Published state
-    @Published var isAuthenticated = false
-    @Published var isEmailVerified = false
-    @Published var currentUser: AppUser?          // keep your existing type
-    @Published var currentSupabaseUser: User?
+    @Published var isAuthenticated: Bool = false
+    @Published var currentUser: AppUser?
     @Published var pendingVerificationEmail: String?
 
-    // MARK: - Private
     private let supabase = AppSupabase.shared
-    private var authStateListener: Task<Void, Never>?
+    private var authTask: Task<Void, Never>?
 
     private init() {}
 
-    // MARK: - Lifecycle
-    func initialize() {
-        Task {
-            await refreshSession()
-            startAuthListener()
+    func initialize() async {
+        // Observe auth state changes
+        authTask = Task {
+            for await event in supabase.client.auth.authStateChanges {
+                await self.handleAuthEvent(event)
+            }
+        }
+
+        // Prime current session (in Supabase Swift v2 this returns non-optional Session)
+        do {
+            let session = try await supabase.client.auth.session
+            try await self.loadUserFromSession(session)
+        } catch {
+            self.isAuthenticated = false
         }
     }
 
-    /// Clear local auth-related state (useful on app start while developing).
-    func resetAuthenticationState() {
-        Task { await signOutLocally() }
-    }
-
-    // MARK: - Sign Up / Sign In / Sign Out
-
-    /// Email/password sign-up; Supabase emails a 6-digit OTP.
-    func signUp(email: String, password: String, familyName: String?) async throws {
-        let result = try await supabase.client.auth.signUp(email: email, password: password)
-        let user = result.user                               // non-optional in current SDK
-        currentSupabaseUser = user
-        isEmailVerified = (user.emailConfirmedAt != nil)
-
-        if isEmailVerified {
-            try await postLoginBootstrap(familyName: familyName)
-        } else {
-            pendingVerificationEmail = email
-            isAuthenticated = false
+    private func handleAuthEvent(_ event: AuthChangeEvent) async {
+        switch event {
+        case .initialSession, .signedIn, .tokenRefreshed, .userUpdated:
+            if let session = try? await supabase.client.auth.session {
+                try? await self.loadUserFromSession(session)
+            }
+        case .signedOut, .userDeleted:
+            self.isAuthenticated = false
+            self.currentUser = nil
+            self.pendingVerificationEmail = nil
+        default:
+            break
         }
     }
 
-    func signIn(email: String, password: String) async throws {
-        _ = try await supabase.client.auth.signIn(email: email, password: password)
-        await refreshSession()
+    private func loadUserFromSession(_ session: Session) async throws {
+        let user = session.user
+        let db = DatabaseAPI.shared
+        let roleInfo = try await db.fetchUserRole(userId: user.id.uuidString)
+        let appUser = AppUser(
+            id: user.id.uuidString,
+            email: user.email,
+            role: roleInfo?.role ?? .parent,
+            familyId: roleInfo?.familyId
+        )
+        self.currentUser = appUser
+        self.isAuthenticated = true
     }
 
-    /// Non-throwing sign-out: always clears local state so UI returns to login.
-    func signOut() async {
-        do { try await supabase.client.auth.signOut() }
-        catch { print("signOut error:", error) }     // keep for dev visibility
-        await signOutLocally()
-    }
+    // MARK: - Email OTP (6-digit code)
 
-    // MARK: - OTP (real Supabase verification)
-    func resendVerificationCode() async throws {
-        guard let email = pendingVerificationEmail else { throw VerificationError.invalid }
-        try await supabase.client.auth.resend(email: email, type: .signup)
+    func sendCode(to email: String) async throws {
+        try await supabase.client.auth.signInWithOTP(email: email, shouldCreateUser: true)
+        self.pendingVerificationEmail = email
     }
 
     func verifyCode(_ code: String) async throws {
-        guard let email = pendingVerificationEmail else { throw VerificationError.invalid }
-
-        try await supabase.client.auth.verifyOTP(email: email, token: code, type: .signup)
-
-        let session = try await supabase.client.auth.session
-        await applySession(session)
-
-        pendingVerificationEmail = nil
-        isAuthenticated = true
-        isEmailVerified = true
-
-        try await postLoginBootstrap(familyName: nil)
+        guard let email = pendingVerificationEmail else { return }
+        try await supabase.client.auth.verifyOTP(email: email, token: code, type: .email)
+        self.pendingVerificationEmail = nil
     }
 
-    // MARK: - Private
-    private func postLoginBootstrap(familyName: String?) async throws {
-        let session = try await supabase.client.auth.session
-        await applySession(session)
-        // e.g., ensure family exists using `familyName` if you choose to.
+    func signOut() async {
+        do { try await supabase.client.auth.signOut() } catch { print("signOut error:", error) }
     }
-
-    private func refreshSession() async {
-        do {
-            let session = try await supabase.client.auth.session
-            await applySession(session)
-        } catch {
-            await signOutLocally()
-        }
-    }
-
-    private func applySession(_ session: Session) async {
-        currentSupabaseUser = session.user
-        isEmailVerified = (session.user.emailConfirmedAt != nil)
-
-        // Load your profile from DB so familyId is set
-        await loadUserProfile(supabaseUser: session.user)
-
-        isAuthenticated = true
-    }
-
-    private func startAuthListener() {
-        authStateListener?.cancel()
-        authStateListener = Task { [weak self] in
-            guard let self else { return }
-            for await _ in self.supabase.client.auth.authStateChanges {
-                await self.refreshSession()
-            }
-        }
-    }
-
-    private func signOutLocally() async {
-        currentUser = nil
-        currentSupabaseUser = nil
-        isAuthenticated = false
-        isEmailVerified = false
-        pendingVerificationEmail = nil
-    }
-
-    // MARK: - Profile load (real fetch)
-    private func loadUserProfile(supabaseUser: User) async {
-        do {
-            if let profile = try await DatabaseAPI.shared.fetchProfile(userId: supabaseUser.id.uuidString) {
-                currentUser = profile
-            } else {
-                // Minimal bootstrap if profiles row doesn't exist yet (optional)
-                currentUser = AppUser(
-                    id: supabaseUser.id.uuidString,
-                    role: .parent,
-                    email: supabaseUser.email ?? "",
-                    displayName: (supabaseUser.email ?? "").split(separator: "@").first.map(String.init) ?? "User",
-                    familyId: nil,
-                    createdAt: Date()
-                )
-            }
-        } catch {
-            print("Profile load failed: \(error)")
-        }
-    }
-
-    enum VerificationError: Error { case invalid }
 }
 ```
 
 ## File: AuthenticationView.swift
 
 ```swift
+
 import SwiftUI
 
 struct AuthenticationView: View {
-    @EnvironmentObject var authService: AuthService
-
-    @State private var email = ""
-    @State private var password = ""
-    @State private var familyName = ""
-
-    @State private var signinError: String?
-    @State private var signupError: String?
-    @State private var working = false
+    @EnvironmentObject var auth: AuthService
+    @State private var email: String = ""
 
     var body: some View {
-        NavigationView {
-            Form {
-                Section("Account") {
-                    TextField("Email", text: $email)
-                        .keyboardType(.emailAddress)
-                        .textContentType(.emailAddress)
-                        .autocapitalization(.none)
-                        .disableAutocorrection(true)
+        VStack(spacing: 24) {
+            Text("Allowance Alley").font(.largeTitle).bold()
+            TextField("Email", text: $email)
+                .textInputAutocapitalization(.never)
+                .keyboardType(.emailAddress)
+                .textFieldStyle(.roundedBorder)
+                .frame(maxWidth: 420)
 
-                    SecureField("Password", text: $password)
-                        .textContentType(.password)
-                }
-
-                Section("Family (optional for sign up)") {
-                    TextField("Family Name", text: $familyName)
-                }
-
-                if let signinError { Text(signinError).foregroundColor(.red) }
-                if let signupError { Text(signupError).foregroundColor(.red) }
-
-                Section {
-                    Button(working ? "Signing In…" : "Sign In") {
-                        Task { await signIn() }
-                    }
-                    .disabled(working || email.isEmpty || password.isEmpty)
-
-                    Button(working ? "Creating…" : "Sign Up") {
-                        Task { await signUp() }
-                    }
-                    .disabled(working || email.isEmpty || password.isEmpty)
-                }
+            Button("Send 6-digit code") {
+                Task { try? await auth.sendCode(to: email) }
             }
-            .navigationTitle("Welcome")
+            .buttonStyle(.borderedProminent)
+            .disabled(email.isEmpty)
         }
-    }
-
-    private func signIn() async {
-        working = true; defer { working = false }
-        signinError = nil
-        do {
-            try await authService.signIn(email: email.trimmingCharacters(in: .whitespaces),
-                                         password: password)
-        } catch {
-            signinError = error.localizedDescription
-        }
-    }
-
-    private func signUp() async {
-        working = true; defer { working = false }
-        signupError = nil
-        do {
-            try await authService.signUp(email: email.trimmingCharacters(in: .whitespaces),
-                                         password: password,
-                                         familyName: familyName.trimmingCharacters(in: .whitespaces))
-        } catch {
-            signupError = error.localizedDescription
-        }
+        .padding()
     }
 }
 ```
@@ -531,6 +441,7 @@ struct AuthenticationView: View {
 ## File: ChoreService.swift
 
 ```swift
+
 import Foundation
 import Combine
 
@@ -547,9 +458,7 @@ final class ChoreService: ObservableObject {
     private let db = DatabaseAPI.shared
     private init() {}
 
-    // Load everything needed for the dashboard
-    func loadAll() async {
-        guard let familyId = auth.currentUser?.familyId ?? auth.currentUser?.id else { return }
+    func loadAll(for familyId: String) async {
         async let a = loadChores(familyId: familyId)
         async let b = loadAssignments(familyId: familyId)
         async let c = loadCompletions(familyId: familyId)
@@ -561,51 +470,44 @@ final class ChoreService: ObservableObject {
     }
 
     func loadAssignments(familyId: String) async {
-        do { assignments = try await db.fetchAssignments(familyId: familyId) } catch { print(error) }
+        do { assignments = try await db.fetchAssignmentsForFamily(familyId: familyId) } catch { print(error) }
     }
 
     func loadCompletions(familyId: String) async {
         do {
-            completions = try await db.fetchCompletions(familyId: familyId)
+            completions = try await db.fetchCompletionsForFamily(familyId: familyId)
             pendingApprovals = completions.filter { $0.status == .pending }
         } catch { print(error) }
     }
 
-    // Create a chore and optional assignments
-    func createChore(_ chore: Chore, assignedTo childIds: [String]) async throws {
-        let created = try await db.createChore(chore)
+    func createChore(familyId: String, title: String, description: String?, points: Int, requirePhoto: Bool, recurrence: String?) async throws -> Chore {
+        guard let parentId = auth.currentUser?.id else { throw NSError(domain: "Auth", code: 401) }
+        let created = try await db.createChore(familyId: familyId, title: title, description: description, points: points, requirePhoto: requirePhoto, recurrence: recurrence, parentUserId: parentId)
         chores.append(created)
-
-        for id in childIds {
-            let a = try await db.assignChore(choreId: created.id, memberId: id, due: Date().addingTimeInterval(24*3600))
-            assignments.append(a)
-        }
+        return created
     }
 
-    // Child marks complete (optionally with photo URL you’ve stored in Storage)
+    func assignChore(choreId: String, memberId: String, due: Date?) async throws {
+        let a = try await db.assignChore(choreId: choreId, memberId: memberId, due: due)
+        assignments.append(a)
+    }
+
     func completeChore(assignmentId: String, photoURL: String? = nil) async throws {
-        let completion = ChoreCompletion(
-            assignmentId: assignmentId,
-            submittedBy: auth.currentUser?.id,
-            photoURL: photoURL,
-            status: .pending,
-            completedAt: Date()
-        )
-        let saved = try await db.submitCompletion(completion)
+        let submittedBy = auth.currentUser?.id
+        let saved = try await db.submitCompletion(assignmentId: assignmentId, submittedBy: submittedBy, photoURL: photoURL)
         completions.insert(saved, at: 0)
         pendingApprovals.insert(saved, at: 0)
     }
 
-    // Parent approves / rejects
     func approveCompletion(_ completion: ChoreCompletion) async throws {
         guard let reviewer = auth.currentUser?.id else { return }
-        let updated = try await db.reviewCompletion(id: completion.id, status: "approved", reviewedBy: reviewer)
+        let updated = try await db.reviewCompletion(id: completion.id, status: .approved, reviewedBy: reviewer)
         replaceCompletion(updated)
     }
 
     func rejectCompletion(_ completion: ChoreCompletion) async throws {
         guard let reviewer = auth.currentUser?.id else { return }
-        let updated = try await db.reviewCompletion(id: completion.id, status: "rejected", reviewedBy: reviewer)
+        let updated = try await db.reviewCompletion(id: completion.id, status: .rejected, reviewedBy: reviewer)
         replaceCompletion(updated)
     }
 
@@ -614,56 +516,152 @@ final class ChoreService: ObservableObject {
         pendingApprovals.removeAll { $0.id == updated.id || updated.status != .pending }
         if updated.status == .pending { pendingApprovals.append(updated) }
     }
-
-    // Utility used by ChildChoresView in some builds
-    func getTodayAssignments(for memberId: String) -> [ChoreAssignment] {
-        let cal = Calendar.current
-        return assignments.filter { a in
-            guard let due = a.dueDate else { return false }
-            return cal.isDateInToday(due) && a.memberId == memberId
-        }
-    }
 }
 ```
 
 ## File: ContentView.swift
 
 ```swift
+
 import SwiftUI
 
 struct ContentView: View {
-    @EnvironmentObject var authService: AuthService
+    @EnvironmentObject var auth: AuthService
+    @EnvironmentObject var familyService: FamilyService
     @EnvironmentObject var choreService: ChoreService
     @EnvironmentObject var rewardsService: RewardsService
-    @EnvironmentObject var familyService: FamilyService
 
     var body: some View {
         Group {
-            if authService.isAuthenticated {
-                if let user = authService.currentUser {
-                    switch user.role {
-                    case .parent:
-                        ParentMainView()
-                            .task {
-                                await familyService.loadChildren()
-                                await choreService.loadAll()
-                                await rewardsService.loadAll()
-                            }
-                    case .child:
-                        ChildMainView(childId: user.id)
-                            .task {
-                                await familyService.loadChildren()
-                                await choreService.loadAll()
-                                await rewardsService.loadAll()
-                            }
+            if auth.isAuthenticated, let user = auth.currentUser {
+                MainShell(user: user)
+                    .task {
+                        await familyService.ensureFamilyExists()
+                        if let famId = familyService.family?.id ?? user.familyId {
+                            await familyService.loadMembers()
+                            await choreService.loadAll(for: famId)
+                            await rewardsService.loadAll(familyId: famId)
+                        }
                     }
-                } else {
-                    ProgressView("Loading profile…")
-                }
-            } else if authService.pendingVerificationEmail != nil {
+            } else if auth.pendingVerificationEmail != nil {
                 EmailVerificationView()
             } else {
                 AuthenticationView()
+            }
+        }
+    }
+}
+
+struct MainShell: View {
+    let user: AppUser
+    @EnvironmentObject var familyService: FamilyService
+
+    var body: some View {
+        TabView {
+            ParentDashboardView()
+                .tabItem { Label("Dashboard", systemImage: "house") }
+            ChoresScreen()
+                .tabItem { Label("Chores", systemImage: "checkmark.circle") }
+            RewardsScreen()
+                .tabItem { Label("Rewards", systemImage: "gift") }
+            SettingsScreen()
+                .tabItem { Label("Settings", systemImage: "gear") }
+        }
+    }
+}
+
+struct ChoresScreen: View {
+    @EnvironmentObject var chores: ChoreService
+    @EnvironmentObject var family: FamilyService
+    @State private var newTitle = ""
+    @State private var points = 5
+
+    var body: some View {
+        NavigationView {
+            VStack {
+                List(chores.chores, id: \ .id) { c in
+                    VStack(alignment: .leading) {
+                        Text(c.title).font(.headline)
+                        Text("\(c.points) pts").font(.subheadline)
+                    }
+                }
+                .listStyle(.plain)
+
+                HStack {
+                    TextField("New chore title", text: $newTitle).textFieldStyle(.roundedBorder)
+                    Stepper("\(points) pts", value: $points, in: 1...50)
+                    Button("Add") {
+                        Task {
+                            if let famId = family.family?.id {
+                                _ = try? await chores.createChore(familyId: famId, title: newTitle, description: nil, points: points, requirePhoto: false, recurrence: nil)
+                                await chores.loadChores(familyId: famId)
+                                newTitle = ""
+                            }
+                        }
+                    }.buttonStyle(.borderedProminent)
+                }.padding()
+            }
+            .navigationTitle("Chores")
+        }
+    }
+}
+
+struct RewardsScreen: View {
+    @EnvironmentObject var rewards: RewardsService
+    @EnvironmentObject var family: FamilyService
+    @State private var name = ""
+    @State private var cost = 10
+
+    var body: some View {
+        NavigationView {
+            VStack {
+                List(rewards.rewards, id: \ .id) { r in
+                    HStack {
+                        Text(r.name).font(.headline)
+                        Spacer()
+                        Text("\(r.costPoints) pts")
+                    }
+                }.listStyle(.plain)
+
+                HStack {
+                    TextField("Reward name", text: $name).textFieldStyle(.roundedBorder)
+                    Stepper("\(cost) pts", value: $cost, in: 1...500)
+                    Button("Add") {
+                        Task {
+                            if let famId = family.family?.id {
+                                try? await rewards.createReward(familyId: famId, name: name, costPoints: cost)
+                                await rewards.loadRewards(familyId: famId)
+                                name = ""
+                            }
+                        }
+                    }.buttonStyle(.borderedProminent)
+                }.padding()
+            }
+            .navigationTitle("Rewards")
+        }
+    }
+}
+
+struct SettingsScreen: View {
+    @EnvironmentObject var auth: AuthService
+    @EnvironmentObject var family: FamilyService
+    @State private var childName = ""
+    @State private var childAge: Int = 10
+
+    var body: some View {
+        Form {
+            Section("Family") {
+                Text(family.family?.name ?? "—")
+                Button("Add Child") {
+                    Task { try? await family.addChild(childName, age: childAge); await family.loadMembers() }
+                }
+                HStack {
+                    TextField("Name", text: $childName)
+                    Stepper("Age: \(childAge)", value: $childAge, in: 3...18)
+                }
+            }
+            Section("Account") {
+                Button("Sign out") { Task { await auth.signOut() } }.foregroundColor(.red)
             }
         }
     }
@@ -745,6 +743,8 @@ struct DashboardView: View {
 ## File: DatabaseAPI.swift
 
 ```swift
+
+// DatabaseAPI.swift — fixed generics + AnyEncodable payloads
 import Foundation
 import Supabase
 
@@ -753,75 +753,21 @@ struct DatabaseAPI {
     private let client = AppSupabase.shared.client
     private init() {}
 
-    // MARK: - Families / Children
+    // MARK: - Profiles & Roles
 
-    func createFamily(name: String) async throws -> Family {
-        try await client
-            .from("families")
-            .insert(["name": name], returning: .representation)
-            .select()
-            .single()
-            .execute()
-            .value
+    struct UserRoleInfo: Codable {
+        let familyId: String?
+        let userId: String?
+        let role: UserRole
+        enum CodingKeys: String, CodingKey {
+            case familyId = "family_id"
+            case userId = "user_id"
+            case role
+        }
     }
 
-    func fetchFamily(for userId: String) async throws -> Family? {
-        let rows: [Family] = try await client
-            .from("families")
-            .select()
-            .eq("owner_user_id", value: userId)
-            .limit(1)
-            .execute()
-            .value
-        return rows.first
-    }
-
-    func createChild(familyId: String, displayName: String) async throws -> Child {
-        try await client
-            .from("children")
-            .insert([
-                "family_id": familyId,
-                "display_name": displayName
-            ], returning: .representation)
-            .select()
-            .single()
-            .execute()
-            .value
-    }
-
-    func fetchChildren(familyId: String) async throws -> [Child] {
-        try await client
-            .from("children")
-            .select()
-            .eq("family_id", value: familyId)
-            .order("created_at", ascending: true)
-            .execute()
-            .value
-    }
-
-    func updateChild(_ child: Child) async throws -> Child {
-        try await client
-            .from("children")
-            .update(child, returning: .representation)
-            .eq("id", value: child.id)
-            .select()
-            .single()
-            .execute()
-            .value
-    }
-
-    func deleteChild(id: String) async throws {
-        _ = try await client
-            .from("children")
-            .delete()
-            .eq("id", value: id)
-            .execute()
-    }
-
-    // MARK: - Profiles
-
-    func fetchProfile(userId: String) async throws -> AppUser? {
-        let rows: [AppUser] = try await client
+    func fetchProfile(userId: String) async throws -> Profile? {
+        let rows: [Profile] = try await client
             .from("profiles")
             .select()
             .eq("id", value: userId)
@@ -831,133 +777,270 @@ struct DatabaseAPI {
         return rows.first
     }
 
+    func fetchUserRole(userId: String) async throws -> (familyId: String?, role: UserRole)? {
+        let rows: [UserRoleInfo] = try await client
+            .from("v_user_family_roles")
+            .select()
+            .eq("user_id", value: userId)
+            .limit(1)
+            .execute()
+            .value
+        if let r = rows.first { return (r.familyId, r.role) }
+        if let fam = try await fetchFamilyByOwner(ownerId: userId) { return (fam.id, .parent) }
+        return nil
+    }
+
+    // MARK: - Families
+
+    func createFamily(name: String, ownerId: String) async throws -> Family {
+        let payload: [String: AnyEncodable] = [
+            "name": AnyEncodable(name),
+            "owner_id": AnyEncodable(ownerId)
+        ]
+        let row: Family = try await client
+            .from("families")
+            .insert(payload, returning: .representation)
+            .select()
+            .single()
+            .execute()
+            .value
+        return row
+    }
+
+    func fetchFamilyByOwner(ownerId: String) async throws -> Family? {
+        let rows: [Family] = try await client
+            .from("families")
+            .select()
+            .eq("owner_id", value: ownerId)
+            .limit(1)
+            .execute()
+            .value
+        return rows.first
+    }
+
+    func fetchFamily(id: String) async throws -> Family? {
+        let rows: [Family] = try await client
+            .from("families")
+            .select()
+            .eq("id", value: id)
+            .limit(1)
+            .execute()
+            .value
+        return rows.first
+    }
+
+    // MARK: - Family Members
+
+    func listFamilyMembers(familyId: String, role: UserRole? = nil) async throws -> [FamilyMember] {
+        var query = client.from("family_members").select().eq("family_id", value: familyId)
+        if let role { query = query.eq("role", value: role.rawValue) }
+        let rows: [FamilyMember] = try await query.order("created_at", ascending: true).execute().value
+        return rows
+    }
+
+    func createChildMember(familyId: String, childName: String, age: Int?) async throws -> FamilyMember {
+        var payload: [String: AnyEncodable] = [
+            "family_id": AnyEncodable(familyId),
+            "child_name": AnyEncodable(childName),
+            "role": AnyEncodable(UserRole.child.rawValue)
+        ]
+        if let age { payload["age"] = AnyEncodable(age) }
+        let row: FamilyMember = try await client
+            .from("family_members")
+            .insert(payload, returning: .representation)
+            .select()
+            .single()
+            .execute()
+            .value
+        return row
+    }
+
+    // MARK: - Children (optional)
+
+    func createChildProfile(parentUserId: String, name: String, birthdate: Date? = nil, avatarURL: String? = nil) async throws -> Child {
+        var payload: [String: AnyEncodable] = [
+            "parent_user_id": AnyEncodable(parentUserId),
+            "name": AnyEncodable(name)
+        ]
+        if let birthdate {
+            let df = DateFormatter(); df.dateFormat = "yyyy-MM-dd"
+            payload["birthdate"] = AnyEncodable(df.string(from: birthdate))
+        }
+        if let avatarURL { payload["avatar_url"] = AnyEncodable(avatarURL) }
+        let row: Child = try await client
+            .from("children")
+            .insert(payload, returning: .representation)
+            .select()
+            .single()
+            .execute()
+            .value
+        return row
+    }
+
+    func listChildrenOfParent(parentUserId: String) async throws -> [Child] {
+        let rows: [Child] = try await client
+            .from("children")
+            .select()
+            .eq("parent_user_id", value: parentUserId)
+            .order("created_at", ascending: true)
+            .execute()
+            .value
+        return rows
+    }
+
     // MARK: - Chores
 
     func fetchChores(familyId: String) async throws -> [Chore] {
-        try await client
+        let rows: [Chore] = try await client
             .from("chores")
             .select()
             .eq("family_id", value: familyId)
             .order("created_at", ascending: true)
             .execute()
             .value
+        return rows
     }
 
-    func createChore(_ chore: Chore) async throws -> Chore {
-        try await client
+    func createChore(familyId: String, title: String, description: String?, points: Int, requirePhoto: Bool, recurrence: String?, parentUserId: String) async throws -> Chore {
+        var payload: [String: AnyEncodable] = [
+            "family_id": AnyEncodable(familyId),
+            "title": AnyEncodable(title),
+            "points": AnyEncodable(points),
+            "require_photo": AnyEncodable(requirePhoto),
+            "parent_user_id": AnyEncodable(parentUserId)
+        ]
+        if let description { payload["description"] = AnyEncodable(description) }
+        if let recurrence { payload["recurrence"] = AnyEncodable(recurrence) }
+        let row: Chore = try await client
             .from("chores")
-            .insert(chore, returning: .representation)
+            .insert(payload, returning: .representation)
             .select()
             .single()
             .execute()
             .value
-    }
-
-    func updateChore(_ chore: Chore) async throws -> Chore {
-        try await client
-            .from("chores")
-            .update(chore, returning: .representation)
-            .eq("id", value: chore.id)
-            .select()
-            .single()
-            .execute()
-            .value
-    }
-
-    func deleteChore(id: String) async throws {
-        _ = try await client
-            .from("chores")
-            .delete()
-            .eq("id", value: id)
-            .execute()
+        return row
     }
 
     // MARK: - Assignments
 
-    func assignChore(choreId: String, memberId: String, due: Date) async throws -> ChoreAssignment {
-        try await client
+    private func dateOnly(_ d: Date) -> String {
+        let df = DateFormatter()
+        df.calendar = Calendar(identifier: .iso8601)
+        df.dateFormat = "yyyy-MM-dd"
+        return df.string(from: d)
+    }
+
+    func assignChore(choreId: String, memberId: String, due: Date?) async throws -> ChoreAssignment {
+        var payload: [String: AnyEncodable] = [
+            "chore_id": AnyEncodable(choreId),
+            "member_id": AnyEncodable(memberId)
+        ]
+        if let due { payload["due_date"] = AnyEncodable(dateOnly(due)) }
+        let row: ChoreAssignment = try await client
             .from("chore_assignments")
-            .insert([
-                "chore_id": choreId,
-                "member_id": memberId,
-                "due_date": ISO8601DateFormatter().string(from: due)
-            ], returning: .representation)
+            .insert(payload, returning: .representation)
             .select()
             .single()
             .execute()
             .value
+        return row
     }
 
-    func fetchAssignments(familyId: String) async throws -> [ChoreAssignment] {
-        try await client
+    func fetchAssignmentsForFamily(familyId: String) async throws -> [ChoreAssignment] {
+        let members = try await listFamilyMembers(familyId: familyId)
+        let memberIds = members.map { $0.id }
+        if memberIds.isEmpty { return [] }
+        let rows: [ChoreAssignment] = try await client
             .from("chore_assignments")
             .select()
-            .eq("family_id", value: familyId)
+            .in("member_id", values: memberIds)
+            .order("created_at", ascending: false)
             .execute()
             .value
+        return rows
     }
 
     // MARK: - Completions
 
-    func submitCompletion(_ completion: ChoreCompletion) async throws -> ChoreCompletion {
-        try await client
+    func submitCompletion(assignmentId: String, submittedBy: String?, photoURL: String?) async throws -> ChoreCompletion {
+        var payload: [String: AnyEncodable] = [
+            "assignment_id": AnyEncodable(assignmentId),
+            "status": AnyEncodable(CompletionStatus.pending.rawValue)
+        ]
+        if let submittedBy { payload["submitted_by"] = AnyEncodable(submittedBy) }
+        if let photoURL { payload["photo_url"] = AnyEncodable(photoURL) }
+        let row: ChoreCompletion = try await client
             .from("chore_completions")
-            .insert(completion, returning: .representation)
+            .insert(payload, returning: .representation)
             .select()
             .single()
             .execute()
             .value
+        return row
     }
 
-    func reviewCompletion(id: String, status: String, reviewedBy: String) async throws -> ChoreCompletion {
-        try await client
+    func reviewCompletion(id: String, status: CompletionStatus, reviewedBy: String) async throws -> ChoreCompletion {
+        let payload: [String: AnyEncodable] = [
+            "status": AnyEncodable(status.rawValue),
+            "reviewed_by": AnyEncodable(reviewedBy),
+            "reviewed_at": AnyEncodable(ISO8601DateFormatter().string(from: Date()))
+        ]
+        let row: ChoreCompletion = try await client
             .from("chore_completions")
-            .update([
-                "status": status,
-                "reviewed_by": reviewedBy,
-                "reviewed_at": ISO8601DateFormatter().string(from: Date())
-            ], returning: .representation)
+            .update(payload, returning: .representation)
             .eq("id", value: id)
             .select()
             .single()
             .execute()
             .value
+        return row
     }
 
-    func fetchCompletions(familyId: String) async throws -> [ChoreCompletion] {
-        try await client
+    func fetchCompletionsForFamily(familyId: String) async throws -> [ChoreCompletion] {
+        let assignments = try await fetchAssignmentsForFamily(familyId: familyId)
+        let ids = assignments.map { $0.id }
+        if ids.isEmpty { return [] }
+        let rows: [ChoreCompletion] = try await client
             .from("chore_completions")
             .select()
-            .eq("family_id", value: familyId)
+            .in("assignment_id", values: ids)
             .order("completed_at", ascending: false)
             .execute()
             .value
+        return rows
     }
 
-    // MARK: - Rewards
+    // MARK: - Rewards & Redemptions
 
     func fetchRewards(familyId: String) async throws -> [Reward] {
-        try await client
+        let rows: [Reward] = try await client
             .from("rewards")
             .select()
             .eq("family_id", value: familyId)
             .order("created_at", ascending: true)
             .execute()
             .value
+        return rows
     }
 
-    func createReward(_ reward: Reward) async throws -> Reward {
-        try await client
+    func createReward(familyId: String, name: String, costPoints: Int) async throws -> Reward {
+        let payload: [String: AnyEncodable] = [
+            "family_id": AnyEncodable(familyId),
+            "name": AnyEncodable(name),
+            "cost_points": AnyEncodable(costPoints)
+        ]
+        let row: Reward = try await client
             .from("rewards")
-            .insert(reward, returning: .representation)
+            .insert(payload, returning: .representation)
             .select()
             .single()
             .execute()
             .value
+        return row
     }
 
-    func updateReward(_ reward: Reward) async throws -> Reward {
-        try await client
+    func updateReward(reward: Reward) async throws -> Reward {
+        let row: Reward = try await client
             .from("rewards")
             .update(reward, returning: .representation)
             .eq("id", value: reward.id)
@@ -965,6 +1048,7 @@ struct DatabaseAPI {
             .single()
             .execute()
             .value
+        return row
     }
 
     func deleteReward(id: String) async throws {
@@ -975,69 +1059,70 @@ struct DatabaseAPI {
             .execute()
     }
 
-    // MARK: - Redemptions
-
     func requestRedemption(rewardId: String, memberId: String) async throws -> RewardRedemption {
-        try await client
+        let payload: [String: AnyEncodable] = [
+            "reward_id": AnyEncodable(rewardId),
+            "member_id": AnyEncodable(memberId)
+        ]
+        let row: RewardRedemption = try await client
             .from("reward_redemptions")
-            .insert([
-                "reward_id": rewardId,
-                "member_id": memberId,
-                "status": "requested",
-                "requested_at": ISO8601DateFormatter().string(from: Date())
-            ], returning: .representation)
+            .insert(payload, returning: .representation)
             .select()
             .single()
             .execute()
             .value
+        return row
     }
 
-    func setRedemptionStatus(id: String, status: String, decidedBy: String) async throws -> RewardRedemption {
-        try await client
+    func fetchRedemptionsForFamily(familyId: String) async throws -> [RewardRedemption] {
+        let members = try await listFamilyMembers(familyId: familyId)
+        let ids = members.map { $0.id }
+        if ids.isEmpty { return [] }
+        let rows: [RewardRedemption] = try await client
             .from("reward_redemptions")
-            .update([
-                "status": status,
-                "decided_by": decidedBy,
-                "decided_at": ISO8601DateFormatter().string(from: Date())
-            ], returning: .representation)
+            .select()
+            .in("member_id", values: ids)
+            .order("requested_at", ascending: false)
+            .execute()
+            .value
+        return rows
+    }
+
+    func setRedemptionStatus(id: String, status: RedemptionStatus, decidedBy: String) async throws -> RewardRedemption {
+        let payload: [String: AnyEncodable] = [
+            "status": AnyEncodable(status.rawValue),
+            "decided_by": AnyEncodable(decidedBy),
+            "decided_at": AnyEncodable(ISO8601DateFormatter().string(from: Date()))
+        ]
+        let row: RewardRedemption = try await client
+            .from("reward_redemptions")
+            .update(payload, returning: .representation)
             .eq("id", value: id)
             .select()
             .single()
             .execute()
             .value
+        return row
     }
 
-    func fetchRedemptions(familyId: String) async throws -> [RewardRedemption] {
-        try await client
-            .from("reward_redemptions")
-            .select()
-            .eq("family_id", value: familyId)
-            .order("requested_at", ascending: false)
-            .execute()
-            .value
-    }
+    // MARK: - Points Ledger
 
-    // MARK: - Points ledger
+    func fetchLedger(familyId: String, memberId: String? = nil) async throws -> [PointsLedger] {
+        var q = client.from("points_ledger").select().eq("family_id", value: familyId)
+        if let memberId { q = q.eq("member_id", value: memberId) }
+        let rows: [PointsLedger] = try await q.order("created_at", ascending: false).execute().value
+        return rows
+    }
 
     func addLedgerEntry(_ entry: PointsLedger) async throws -> PointsLedger {
-        try await client
+        let row: PointsLedger = try await client
             .from("points_ledger")
             .insert(entry, returning: .representation)
             .select()
             .single()
             .execute()
             .value
-    }
-
-    func fetchLedger(familyId: String, memberId: String) async throws -> [PointsLedger] {
-        try await client
-            .from("points_ledger")
-            .select()
-            .eq("family_id", value: familyId)
-            .eq("member_id", value: memberId)
-            .order("created_at", ascending: false)
-            .execute()
-            .value
+        return row
     }
 }
 ```
@@ -1045,83 +1130,38 @@ struct DatabaseAPI {
 ## File: EmailVerificationView.swift
 
 ```swift
+
 import SwiftUI
 
 struct EmailVerificationView: View {
-    @EnvironmentObject var authService: AuthService
-
+    @EnvironmentObject var auth: AuthService
     @State private var code: String = ""
-    @State private var isWorking = false
-    @State private var error: String?
 
     var body: some View {
-        NavigationView {
-            VStack(spacing: 16) {
-                Text("Enter Verification Code")
-                    .font(.title3)
-                    .fontWeight(.semibold)
+        VStack(spacing: 16) {
+            Text("Check your email").font(.title2).bold()
+            Text("Enter the 6-digit code we sent to \(auth.pendingVerificationEmail ?? "")")
+                .multilineTextAlignment(.center)
 
-                if let email = authService.pendingVerificationEmail {
-                    Text("We emailed a 6‑digit code to:")
-                        .foregroundColor(.secondary)
-                    Text(email)
-                        .font(.subheadline)
-                        .fontWeight(.medium)
-                }
+            TextField("123456", text: $code)
+                .keyboardType(.numberPad)
+                .textContentType(.oneTimeCode)
+                .textFieldStyle(.roundedBorder)
+                .frame(maxWidth: 200)
 
-                TextField("6‑digit code", text: $code)
-                    .keyboardType(.numberPad)
-                    .textContentType(.oneTimeCode)
-                    .multilineTextAlignment(.center)
-                    .padding()
-                    .background(Color(UIColor.secondarySystemBackground))
-                    .cornerRadius(10)
-                    // iOS 17+ onChange (two‑arg or zero‑arg). Use zero‑arg here.
-                    .onChange(of: code) {
-                        code = String(code.prefix(6))
-                    }
-
-                if let error {
-                    Text(error).foregroundColor(.red)
-                }
-
-                Button(isWorking ? "Verifying…" : "Verify") {
-                    Task { await verify() }
-                }
-                .buttonStyle(.borderedProminent)
-                .disabled(isWorking || code.count != 6)
-
-                Button("Resend Code") {
-                    Task { await resend() }
-                }
-                .disabled(isWorking)
-                .padding(.top, 4)
-
-                Spacer()
+            Button("Verify") {
+                Task { try? await auth.verifyCode(code) }
             }
-            .padding()
-            .navigationTitle("Verify Email")
-        }
-    }
+            .buttonStyle(.borderedProminent)
+            .disabled(code.count < 6)
 
-    private func verify() async {
-        isWorking = true; defer { isWorking = false }
-        do {
-            try await authService.verifyCode(code)
-            error = nil
-        } catch {
-            self.error = error.localizedDescription
+            Button("Resend code") {
+                if let email = auth.pendingVerificationEmail {
+                    Task { try? await auth.sendCode(to: email) }
+                }
+            }.buttonStyle(.bordered)
         }
-    }
-
-    private func resend() async {
-        isWorking = true; defer { isWorking = false }
-        do {
-            try await authService.resendVerificationCode()
-            error = nil
-        } catch {
-            self.error = error.localizedDescription
-        }
+        .padding()
     }
 }
 ```
@@ -1129,6 +1169,7 @@ struct EmailVerificationView: View {
 ## File: FamilyService.swift
 
 ```swift
+
 import Foundation
 import Combine
 
@@ -1137,36 +1178,34 @@ final class FamilyService: ObservableObject {
     static let shared = FamilyService()
 
     @Published private(set) var family: Family?
-    @Published private(set) var children: [Child] = []
+    @Published private(set) var members: [FamilyMember] = []
 
     private let auth = AuthService.shared
     private let db = DatabaseAPI.shared
     private init() {}
 
-    func loadFamily() async {
+    func ensureFamilyExists(named defaultName: String = "My Family") async {
         guard let userId = auth.currentUser?.id else { return }
-        do { family = try await db.fetchFamily(for: userId) } catch { print(error) }
+        do {
+            if let fam = try await db.fetchFamilyByOwner(ownerId: userId) {
+                self.family = fam
+            } else {
+                self.family = try await db.createFamily(name: defaultName, ownerId: userId)
+            }
+        } catch {
+            print("ensureFamilyExists error:", error)
+        }
     }
 
-    func loadChildren() async {
-        guard let familyId = auth.currentUser?.familyId ?? auth.currentUser?.id else { return }
-        do { children = try await db.fetchChildren(familyId: familyId) } catch { print(error) }
+    func loadMembers() async {
+        guard let familyId = family?.id ?? auth.currentUser?.familyId else { return }
+        do { members = try await db.listFamilyMembers(familyId: familyId) } catch { print(error) }
     }
 
-    func createChild(name: String, birthdate: Date? = nil, pin: String? = nil) async throws {
-        guard let familyId = auth.currentUser?.familyId ?? auth.currentUser?.id else { return }
-        let created = try await db.createChild(familyId: familyId, displayName: name)
-        children.append(created)
-    }
-
-    func updateChild(_ child: Child) async throws {
-        let updated = try await db.updateChild(child)
-        if let i = children.firstIndex(where: { $0.id == updated.id }) { children[i] = updated }
-    }
-
-    func deleteChild(_ child: Child) async throws {
-        try await db.deleteChild(id: child.id)
-        children.removeAll { $0.id == child.id }
+    func addChild(_ name: String, age: Int?) async throws {
+        guard let familyId = family?.id ?? auth.currentUser?.familyId else { return }
+        let created = try await db.createChildMember(familyId: familyId, childName: name, age: age)
+        members.append(created)
     }
 }
 ```
@@ -1345,50 +1384,85 @@ struct ChildChoresView: View {
 ## File: Models.swift
 
 ```swift
+
 import Foundation
 
 // MARK: - Enums
 
 public enum UserRole: String, Codable, CaseIterable {
-    case parent = "parent"
-    case child = "child"
+    case parent, child
 }
 
 public enum CompletionStatus: String, Codable, CaseIterable {
-    case pending = "pending"
-    case approved = "approved"
-    case rejected = "rejected"
+    case pending, approved, rejected
 }
 
 public enum RedemptionStatus: String, Codable, CaseIterable {
-    case requested = "requested"
-    case approved = "approved"
-    case rejected = "rejected"
-    case fulfilled = "fulfilled"
+    case requested, approved, rejected
 }
 
-public enum PointsEvent: String, Codable, CaseIterable {
-    case choreCompleted = "chore_completed"
-    case rewardRedeemed = "reward_redeemed"
-    case bonus = "bonus"
-    case penalty = "penalty"
+// MARK: - Users
+
+public struct AppUser: Identifiable, Codable, Equatable {
+    public var id: String                   // auth user id
+    public var email: String?
+    public var role: UserRole               // from v_user_family_roles or default .parent
+    public var familyId: String?            // fetched via families.owner_id or v_user_family_roles
 }
 
-// MARK: - Core Models
+// MARK: - Profiles (DB: profiles)
+
+public struct Profile: Identifiable, Codable, Equatable {
+    public var id: String                   // equals auth user id
+    public var displayName: String?
+    public var createdAt: Date?
+
+    enum CodingKeys: String, CodingKey {
+        case id
+        case displayName = "display_name"
+        case createdAt = "created_at"
+    }
+}
+
+// MARK: - Families (DB: families)
 
 public struct Family: Identifiable, Codable, Equatable {
     public var id: String
     public var ownerId: String
     public var name: String
-    public var createdAt: Date
-    
-    public init(id: String = UUID().uuidString, ownerId: String, name: String, createdAt: Date = Date()) {
-        self.id = id
-        self.ownerId = ownerId
-        self.name = name
-        self.createdAt = createdAt
+    public var createdAt: Date?
+
+    enum CodingKeys: String, CodingKey {
+        case id
+        case ownerId = "owner_id"
+        case name
+        case createdAt = "created_at"
     }
 }
+
+// MARK: - Family Members (DB: family_members)
+
+public struct FamilyMember: Identifiable, Codable, Equatable {
+    public var id: String
+    public var familyId: String
+    public var userId: String?
+    public var childName: String?
+    public var age: Int?
+    public var role: UserRole
+    public var createdAt: Date?
+
+    enum CodingKeys: String, CodingKey {
+        case id
+        case familyId = "family_id"
+        case userId = "user_id"
+        case childName = "child_name"
+        case age
+        case role
+        case createdAt = "created_at"
+    }
+}
+
+// MARK: - Children (DB: children) — optional profile table for kids without accounts
 
 public struct Child: Identifiable, Codable, Equatable {
     public var id: String
@@ -1396,22 +1470,19 @@ public struct Child: Identifiable, Codable, Equatable {
     public var name: String
     public var birthdate: Date?
     public var avatarURL: String?
-    public var createdAt: Date
-    
-    public init(id: String = UUID().uuidString, parentUserId: String, name: String, birthdate: Date? = nil, avatarURL: String? = nil, createdAt: Date = Date()) {
-        self.id = id
-        self.parentUserId = parentUserId
-        self.name = name
-        self.birthdate = birthdate
-        self.avatarURL = avatarURL
-        self.createdAt = createdAt
-    }
-    
-    public var age: Int? {
-        guard let birthdate = birthdate else { return nil }
-        return Calendar.current.dateComponents([.year], from: birthdate, to: Date()).year
+    public var createdAt: Date?
+
+    enum CodingKeys: String, CodingKey {
+        case id
+        case parentUserId = "parent_user_id"
+        case name
+        case birthdate
+        case avatarURL = "avatar_url"
+        case createdAt = "created_at"
     }
 }
+
+// MARK: - Chores (DB: chores)
 
 public struct Chore: Identifiable, Codable, Equatable {
     public var id: String
@@ -1422,36 +1493,49 @@ public struct Chore: Identifiable, Codable, Equatable {
     public var requirePhoto: Bool
     public var recurrence: String?
     public var parentUserId: String
-    public var createdAt: Date
-    
-    public init(id: String = UUID().uuidString, familyId: String, title: String, description: String? = nil, points: Int, requirePhoto: Bool = false, recurrence: String? = nil, parentUserId: String, createdAt: Date = Date()) {
-        self.id = id
-        self.familyId = familyId
-        self.title = title
-        self.description = description
-        self.points = points
-        self.requirePhoto = requirePhoto
-        self.recurrence = recurrence
-        self.parentUserId = parentUserId
-        self.createdAt = createdAt
+    public var createdAt: Date?
+
+    enum CodingKeys: String, CodingKey {
+        case id
+        case familyId = "family_id"
+        case title
+        case description
+        case points
+        case requirePhoto = "require_photo"
+        case recurrence
+        case parentUserId = "parent_user_id"
+        case createdAt = "created_at"
     }
 }
+
+// MARK: - Chore Assignments (DB: chore_assignments)
 
 public struct ChoreAssignment: Identifiable, Codable, Equatable {
     public var id: String
     public var choreId: String
     public var memberId: String
-    public var dueDate: Date?
-    public var createdAt: Date
-    
-    public init(id: String = UUID().uuidString, choreId: String, memberId: String, dueDate: Date? = nil, createdAt: Date = Date()) {
-        self.id = id
-        self.choreId = choreId
-        self.memberId = memberId
-        self.dueDate = dueDate
-        self.createdAt = createdAt
+    public var dueDate: String?            // DB is 'date' (YYYY-MM-DD)
+
+    public var createdAt: Date?
+
+    enum CodingKeys: String, CodingKey {
+        case id
+        case choreId = "chore_id"
+        case memberId = "member_id"
+        case dueDate = "due_date"
+        case createdAt = "created_at"
+    }
+
+    public var dueDateAsDate: Date? {
+        guard let dueDate else { return nil }
+        let df = DateFormatter()
+        df.calendar = Calendar(identifier: .iso8601)
+        df.dateFormat = "yyyy-MM-dd"
+        return df.date(from: dueDate)
     }
 }
+
+// MARK: - Completions (DB: chore_completions)
 
 public struct ChoreCompletion: Identifiable, Codable, Equatable {
     public var id: String
@@ -1462,34 +1546,38 @@ public struct ChoreCompletion: Identifiable, Codable, Equatable {
     public var completedAt: Date?
     public var reviewedBy: String?
     public var reviewedAt: Date?
-    
-    public init(id: String = UUID().uuidString, assignmentId: String, submittedBy: String? = nil, photoURL: String? = nil, status: CompletionStatus = .pending, completedAt: Date? = nil, reviewedBy: String? = nil, reviewedAt: Date? = nil) {
-        self.id = id
-        self.assignmentId = assignmentId
-        self.submittedBy = submittedBy
-        self.photoURL = photoURL
-        self.status = status
-        self.completedAt = completedAt
-        self.reviewedBy = reviewedBy
-        self.reviewedAt = reviewedAt
+
+    enum CodingKeys: String, CodingKey {
+        case id
+        case assignmentId = "assignment_id"
+        case submittedBy = "submitted_by"
+        case photoURL = "photo_url"
+        case status
+        case completedAt = "completed_at"
+        case reviewedBy = "reviewed_by"
+        case reviewedAt = "reviewed_at"
     }
 }
+
+// MARK: - Rewards (DB: rewards)
 
 public struct Reward: Identifiable, Codable, Equatable {
     public var id: String
     public var familyId: String
     public var name: String
     public var costPoints: Int
-    public var createdAt: Date
-    
-    public init(id: String = UUID().uuidString, familyId: String, name: String, costPoints: Int, createdAt: Date = Date()) {
-        self.id = id
-        self.familyId = familyId
-        self.name = name
-        self.costPoints = costPoints
-        self.createdAt = createdAt
+    public var createdAt: Date?
+
+    enum CodingKeys: String, CodingKey {
+        case id
+        case familyId = "family_id"
+        case name
+        case costPoints = "cost_points"
+        case createdAt = "created_at"
     }
 }
+
+// MARK: - Reward Redemptions (DB: reward_redemptions)
 
 public struct RewardRedemption: Identifiable, Codable, Equatable {
     public var id: String
@@ -1499,17 +1587,19 @@ public struct RewardRedemption: Identifiable, Codable, Equatable {
     public var requestedAt: Date?
     public var decidedBy: String?
     public var decidedAt: Date?
-    
-    public init(id: String = UUID().uuidString, rewardId: String, memberId: String, status: RedemptionStatus = .requested, requestedAt: Date? = nil, decidedBy: String? = nil, decidedAt: Date? = nil) {
-        self.id = id
-        self.rewardId = rewardId
-        self.memberId = memberId
-        self.status = status
-        self.requestedAt = requestedAt
-        self.decidedBy = decidedBy
-        self.decidedAt = decidedAt
+
+    enum CodingKeys: String, CodingKey {
+        case id
+        case rewardId = "reward_id"
+        case memberId = "member_id"
+        case status
+        case requestedAt = "requested_at"
+        case decidedBy = "decided_by"
+        case decidedAt = "decided_at"
     }
 }
+
+// MARK: - Points Ledger (DB: points_ledger)
 
 public struct PointsLedger: Identifiable, Codable, Equatable {
     public var id: String
@@ -1517,204 +1607,17 @@ public struct PointsLedger: Identifiable, Codable, Equatable {
     public var memberId: String
     public var delta: Int
     public var reason: String?
-    public var event: PointsEvent
-    public var createdAt: Date
-    
-    public init(id: String = UUID().uuidString, familyId: String, memberId: String, delta: Int, reason: String? = nil, event: PointsEvent, createdAt: Date = Date()) {
-        self.id = id
-        self.familyId = familyId
-        self.memberId = memberId
-        self.delta = delta
-        self.reason = reason
-        self.event = event
-        self.createdAt = createdAt
-    }
-}
-
-public struct AppUser: Identifiable, Codable, Equatable {
-    public var id: String
-    public var role: UserRole
-    public var email: String?
-    public var displayName: String
-    public var familyId: String?
-    public var createdAt: Date
-    
-    public init(id: String = UUID().uuidString, role: UserRole, email: String? = nil, displayName: String, familyId: String? = nil, createdAt: Date = Date()) {
-        self.id = id
-        self.role = role
-        self.email = email
-        self.displayName = displayName
-        self.familyId = familyId
-        self.createdAt = createdAt
-    }
-}
-
-// MARK: - Dashboard Models
-
-public struct DashboardSummary: Codable {
-    public var todayAssigned = 0
-    public var todayCompleted = 0
-    public var thisWeekAssigned = 0
-    public var thisWeekCompleted = 0
-    public var pendingApprovals = 0
-    public var childrenStats: [ChildStats] = []
-    public var totalPointsEarned = 0
-    
-    public init() {}
-}
-
-public struct ChildStats: Codable {
-    public var childId: String
-    public var displayName: String
-    public var completedChores: Int = 0
-    public var pendingChores: Int = 0
-    public var weeklyPoints: Int = 0
-    public var totalPoints: Int = 0
-    
-    public init(childId: String, displayName: String) {
-        self.childId = childId
-        self.displayName = displayName
-    }
-}
-
-// MARK: - Family Member Model
-
-public struct FamilyMember: Identifiable, Codable, Equatable {
-    public var id: String
-    public var familyId: String
-    public var userId: String?
-    public var childName: String?
-    public var age: Int?
-    public var role: UserRole
+    public var event: String               // e.g., 'chore_completed', 'reward_redeemed'
     public var createdAt: Date?
-    
-    public init(id: String = UUID().uuidString, familyId: String, userId: String? = nil, childName: String? = nil, age: Int? = nil, role: UserRole, createdAt: Date? = nil) {
-        self.id = id
-        self.familyId = familyId
-        self.userId = userId
-        self.childName = childName
-        self.age = age
-        self.role = role
-        self.createdAt = createdAt
-    }
-}
 
-// MARK: - Codable Extensions for Database Mapping
-
-extension Family {
-    enum CodingKeys: String, CodingKey {
-        case id, name
-        case ownerId = "owner_id"
-        case createdAt = "created_at"
-    }
-}
-
-extension Child {
-    enum CodingKeys: String, CodingKey {
-        case id, name, birthdate
-        case parentUserId = "parent_user_id"
-        case avatarURL = "avatar_url"
-        case createdAt = "created_at"
-    }
-}
-
-extension Chore {
-    enum CodingKeys: String, CodingKey {
-        case id, title, description, points, recurrence
-        case familyId = "family_id"
-        case requirePhoto = "require_photo"
-        case parentUserId = "parent_user_id"
-        case createdAt = "created_at"
-    }
-}
-
-extension ChoreAssignment {
     enum CodingKeys: String, CodingKey {
         case id
-        case choreId = "chore_id"
-        case memberId = "member_id"
-        case dueDate = "due_date"
-        case createdAt = "created_at"
-    }
-}
-
-extension ChoreCompletion {
-    enum CodingKeys: String, CodingKey {
-        case id, status
-        case assignmentId = "assignment_id"
-        case submittedBy = "submitted_by"
-        case photoURL = "photo_url"
-        case completedAt = "completed_at"
-        case reviewedBy = "reviewed_by"
-        case reviewedAt = "reviewed_at"
-    }
-}
-
-extension Reward {
-    enum CodingKeys: String, CodingKey {
-        case id, name
-        case familyId = "family_id"
-        case costPoints = "cost_points"
-        case createdAt = "created_at"
-    }
-}
-
-extension RewardRedemption {
-    enum CodingKeys: String, CodingKey {
-        case id, status
-        case rewardId = "reward_id"
-        case memberId = "member_id"
-        case requestedAt = "requested_at"
-        case decidedBy = "decided_by"
-        case decidedAt = "decided_at"
-    }
-}
-
-extension PointsLedger {
-    enum CodingKeys: String, CodingKey {
-        case id, delta, reason, event
         case familyId = "family_id"
         case memberId = "member_id"
+        case delta
+        case reason
+        case event
         case createdAt = "created_at"
-    }
-}
-
-extension AppUser {
-    enum CodingKeys: String, CodingKey {
-        case id, role, email
-        case displayName = "display_name"
-        case familyId = "family_id"
-        case createdAt = "created_at"
-    }
-}
-
-extension FamilyMember {
-    enum CodingKeys: String, CodingKey {
-        case id, role, age
-        case familyId = "family_id"
-        case userId = "user_id"
-        case childName = "child_name"
-        case createdAt = "created_at"
-    }
-}
-
-// MARK: - Date Extensions
-
-public extension Date {
-    func adding(days: Int) -> Date {
-        Calendar.current.date(byAdding: .day, value: days, to: self) ?? self
-    }
-    
-    var isToday: Bool {
-        Calendar.current.isDateInToday(self)
-    }
-    
-    var isThisWeek: Bool {
-        Calendar.current.isDate(self, equalTo: Date(), toGranularity: .weekOfYear)
-    }
-    
-    func ISO8601String() -> String {
-        ISO8601DateFormatter().string(from: self)
     }
 }
 ```
@@ -1784,209 +1687,35 @@ struct NotificationSettings {
 ## File: ParentDashboardView.swift
 
 ```swift
+
 import SwiftUI
 
 struct ParentDashboardView: View {
-    @EnvironmentObject var authService: AuthService
-    @EnvironmentObject var familyService: FamilyService
-    @EnvironmentObject var choreService: ChoreService
-    @EnvironmentObject var rewardsService: RewardsService
-
-    @State private var isLoading = false
-    @State private var showingAddChild = false
-    @State private var showingAddChore = false
-    @State private var showingAddReward = false
+    @EnvironmentObject var family: FamilyService
+    @EnvironmentObject var chores: ChoreService
+    @EnvironmentObject var rewards: RewardsService
 
     var body: some View {
-        NavigationView {
-            ScrollView {
-                LazyVStack(spacing: 16) {
-                    if isLoading {
-                        ProgressView("Loading dashboard...")
-                            .frame(maxWidth: .infinity, minHeight: 200)
-                    } else {
-                        // Welcome Header
-                        welcomeHeader
-
-                        // Quick Stats Cards
-                        quickStatsSection
-
-                        // Pending Approvals Alert
-                        if pendingApprovals > 0 {
-                            pendingApprovalsCard
-                        }
-
-                        // Children Summary
-                        if !familyService.children.isEmpty {
-                            childrenSection
-                        }
-
-                        // Quick Actions
-                        quickActionsSection
-                    }
-                }
-                .padding()
-            }
-            .navigationTitle("Dashboard")
-            .refreshable { await loadDashboardData() }
-            .task { await loadDashboardData() }
-            .sheet(isPresented: $showingAddChild) { AddChildView() }
-            .sheet(isPresented: $showingAddChore) { AddChoreView() }
-            .sheet(isPresented: $showingAddReward) { AddRewardView() }
-        }
-    }
-
-    // MARK: - Derived metrics
-
-    private var pendingApprovals: Int { choreService.pendingApprovals.count }
-
-    private var todayAssigned: Int {
-        let cal = Calendar.current
-        return choreService.assignments.filter { a in
-            guard let due = a.dueDate else { return false }        // <-- unwrap Date?
-            return cal.isDateInToday(due)
-        }.count
-    }
-
-    private var todayCompleted: Int {
-        let cal = Calendar.current
-        return choreService.completions.filter { c in
-            guard let when = c.completedAt else { return false }   // <-- unwrap Date?
-            return cal.isDateInToday(when) && (c.status == .approved || c.status == .pending)
-        }.count
-    }
-
-    private var weekAssigned: Int {
-        let cal = Calendar.current
-        let now = Date()
-        return choreService.assignments.filter { a in
-            guard let d = a.dueDate else { return false }          // <-- unwrap Date?
-            return cal.component(.weekOfYear, from: d) == cal.component(.weekOfYear, from: now) &&
-                   cal.component(.yearForWeekOfYear, from: d) == cal.component(.yearForWeekOfYear, from: now)
-        }.count
-    }
-
-    private var weekCompleted: Int {
-        let cal = Calendar.current
-        let now = Date()
-        return choreService.completions.filter { c in
-            guard let d = c.completedAt else { return false }      // <-- unwrap Date?
-            return cal.component(.weekOfYear, from: d) == cal.component(.weekOfYear, from: now) &&
-                   cal.component(.yearForWeekOfYear, from: d) == cal.component(.yearForWeekOfYear, from: now) &&
-                   (c.status == .approved || c.status == .pending)
-        }.count
-    }
-
-    // MARK: - Sections
-
-    private var welcomeHeader: some View {
-        VStack(spacing: 8) {
-            HStack {
-                VStack(alignment: .leading, spacing: 4) {
-                    Text("Welcome back!")
-                        .font(.title2).fontWeight(.semibold)
-
-                    let famName = familyService.family?.name
-                        ?? authService.currentUser?.displayName
-                        ?? "Family"
-                    Text("\(famName) Family")
-                        .font(.subheadline)
-                        .foregroundColor(.secondary)
-                }
-
-                Spacer()
-
-                Circle()
-                    .fill(Color.blue.gradient)
-                    .frame(width: 50, height: 50)
-                    .overlay(Image(systemName: "person.fill").foregroundColor(.white))
-            }
-            .padding()
-            .background(Color.blue.opacity(0.1))
-            .cornerRadius(16)
-        }
-    }
-
-    private var quickStatsSection: some View {
-        VStack(spacing: 12) {
-            HStack { Text("Today's Progress").font(.headline); Spacer() }
-            HStack(spacing: 16) {
-                StatCard(title: "Today",     completed: todayCompleted, total: todayAssigned, color: .blue)
-                StatCard(title: "This Week", completed: weekCompleted,  total: weekAssigned,  color: .green)
-            }
-        }
-    }
-
-    private var pendingApprovalsCard: some View {
-        NavigationLink(destination: ApprovalsView()) {
-            HStack {
-                VStack(alignment: .leading, spacing: 8) {
+        ScrollView {
+            VStack(alignment: .leading, spacing: 16) {
+                Text("Family").font(.headline)
+                Text(family.family?.name ?? "—")
+                Divider()
+                Text("Members").font(.headline)
+                ForEach(family.members, id: \ .id) { m in
                     HStack {
-                        Image(systemName: "exclamationmark.circle.fill").foregroundColor(.orange)
-                        Text("Pending Approvals").font(.headline)
+                        Text(m.childName ?? (m.userId ?? "Member"))
+                        Spacer()
+                        Text(m.role.rawValue.capitalized)
                     }
-                    Text("Tap to review and approve completed chores")
-                        .font(.caption).foregroundColor(.secondary)
+                    .padding(.vertical, 4)
                 }
-                Spacer()
-                VStack {
-                    Text("\(pendingApprovals)")
-                        .font(.title).fontWeight(.bold).foregroundColor(.orange)
-                    Image(systemName: "chevron.right").font(.caption).foregroundColor(.secondary)
-                }
+                Divider()
+                Text("Chores: \(chores.chores.count) • Rewards: \(rewards.rewards.count)")
             }
             .padding()
-            .background(Color.orange.opacity(0.1))
-            .cornerRadius(12)
         }
-        .buttonStyle(PlainButtonStyle())
-    }
-
-    private var childrenSection: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            HStack {
-                Text("Children").font(.headline); Spacer()
-                Text("\(familyService.children.count)")
-                    .font(.caption)
-                    .padding(.horizontal, 8).padding(.vertical, 4)
-                    .background(Color.blue.opacity(0.2))
-                    .cornerRadius(8)
-            }
-            ForEach(familyService.children) { child in
-                ChildSummaryCard(child: child)
-            }
-        }
-    }
-
-    private var quickActionsSection: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            Text("Quick Actions").font(.headline)
-            LazyVGrid(columns: [GridItem(.flexible()), GridItem(.flexible())], spacing: 12) {
-                QuickActionButton(icon: "list.bullet.clipboard", title: "Add Chore", color: .blue) {
-                    showingAddChore = true
-                }
-                QuickActionButton(icon: "gift.fill", title: "Add Reward", color: .purple) {
-                    showingAddReward = true
-                }
-                QuickActionButton(icon: "person.badge.plus", title: "Add Child", color: .green) {
-                    showingAddChild = true
-                }
-                QuickActionButton(icon: "chart.bar.fill", title: "View Reports", color: .orange) {
-                    // TODO: navigate to reports
-                }
-            }
-        }
-    }
-
-    // MARK: - Loading
-
-    private func loadDashboardData() async {
-        isLoading = true
-        defer { isLoading = false }
-        await familyService.loadFamily()
-        await familyService.loadChildren()
-        await choreService.loadAll()
-        await rewardsService.loadAll()
+        .navigationTitle("Dashboard")
     }
 }
 ```
@@ -2271,6 +2000,7 @@ private struct ApprovalRow: View {
 ## File: RewardsService.swift
 
 ```swift
+
 import Foundation
 import Combine
 
@@ -2280,14 +2010,13 @@ final class RewardsService: ObservableObject {
 
     @Published private(set) var rewards: [Reward] = []
     @Published private(set) var redemptions: [RewardRedemption] = []
-    @Published private(set) var pointsLedger: [PointsLedger] = []
+    @Published private(set) var points: [PointsLedger] = []
 
     private let auth = AuthService.shared
     private let db = DatabaseAPI.shared
     private init() {}
 
-    func loadAll() async {
-        guard let familyId = auth.currentUser?.familyId ?? auth.currentUser?.id else { return }
+    func loadAll(familyId: String) async {
         async let a = loadRewards(familyId: familyId)
         async let b = loadRedemptions(familyId: familyId)
         _ = await (a, b)
@@ -2298,21 +2027,21 @@ final class RewardsService: ObservableObject {
     }
 
     func loadRedemptions(familyId: String) async {
-        do { redemptions = try await db.fetchRedemptions(familyId: familyId) } catch { print(error) }
+        do { redemptions = try await db.fetchRedemptionsForFamily(familyId: familyId) } catch { print(error) }
     }
 
-    func loadPoints(for memberId: String) async {
-        guard let familyId = auth.currentUser?.familyId ?? auth.currentUser?.id else { return }
-        do { pointsLedger = try await db.fetchLedger(familyId: familyId, memberId: memberId) } catch { print(error) }
+    func loadPointsFor(memberId: String) async {
+        guard let familyId = auth.currentUser?.familyId ?? FamilyService.shared.family?.id else { return }
+        do { points = try await db.fetchLedger(familyId: familyId, memberId: memberId) } catch { print(error) }
     }
 
-    func createReward(_ reward: Reward) async throws {
-        let created = try await db.createReward(reward)
+    func createReward(familyId: String, name: String, costPoints: Int) async throws {
+        let created = try await db.createReward(familyId: familyId, name: name, costPoints: costPoints)
         rewards.append(created)
     }
 
     func updateReward(_ reward: Reward) async throws {
-        let updated = try await db.updateReward(reward)
+        let updated = try await db.updateReward(reward: reward)
         if let i = rewards.firstIndex(where: { $0.id == updated.id }) { rewards[i] = updated }
     }
 
@@ -2326,30 +2055,18 @@ final class RewardsService: ObservableObject {
         redemptions.insert(r, at: 0)
     }
 
-    func approveRedemption(_ redemption: RewardRedemption) async throws {
+    func decide(_ redemption: RewardRedemption, approve: Bool) async throws {
         guard let decider = auth.currentUser?.id else { return }
-        let updated = try await db.setRedemptionStatus(id: redemption.id, status: "approved", decidedBy: decider)
+        let status: RedemptionStatus = approve ? .approved : .rejected
+        let updated = try await db.setRedemptionStatus(id: redemption.id, status: status, decidedBy: decider)
         if let i = redemptions.firstIndex(where: { $0.id == updated.id }) { redemptions[i] = updated }
 
-        // optional: write the negative points to the ledger
-        if let reward = rewards.first(where: { $0.id == redemption.rewardId }),
-           let familyId = auth.currentUser?.familyId ?? auth.currentUser?.id {
-            let entry = PointsLedger(
-                familyId: familyId,
-                memberId: redemption.memberId,
-                delta: -reward.costPoints,
-                reason: "Redeemed: \(reward.name)",
-                event: .rewardRedeemed
-            )
-            let saved = try await db.addLedgerEntry(entry)
-            pointsLedger.insert(saved, at: 0)
+        if approve,
+           let familyId = auth.currentUser?.familyId ?? FamilyService.shared.family?.id,
+           let reward = rewards.first(where: { $0.id == redemption.rewardId }) {
+            let entry = PointsLedger(id: UUID().uuidString, familyId: familyId, memberId: redemption.memberId, delta: -reward.costPoints, reason: "Redeemed: \(reward.name)", event: "reward_redeemed", createdAt: nil)
+            _ = try await db.addLedgerEntry(entry)
         }
-    }
-
-    func rejectRedemption(_ redemption: RewardRedemption) async throws {
-        guard let decider = auth.currentUser?.id else { return }
-        let updated = try await db.setRedemptionStatus(id: redemption.id, status: "rejected", decidedBy: decider)
-        if let i = redemptions.firstIndex(where: { $0.id == updated.id }) { redemptions[i] = updated }
     }
 }
 ```
@@ -2433,32 +2150,28 @@ struct ChildSummaryCard: View {
 ## File: StorageAPI.swift
 
 ```swift
+
 import Foundation
 import Supabase
 
-final class StorageAPI {
+struct StorageAPI {
     static let shared = StorageAPI()
     private let client = AppSupabase.shared.client
+
     private init() {}
 
-    @discardableResult
-    func uploadImage(_ data: Data, bucket: String, path: String) async throws -> String {
-        // NEW API: upload(_:data:options:)
-        try await client.storage
-            .from(bucket)
-            .upload(path, data: data)
-
-        let publicURL = try client.storage
-            .from(bucket)
-            .getPublicURL(path: path)
-
-        return publicURL.absoluteString
+    func publicURL(bucket: String, path: String) -> URL? {
+        return (try? client.storage.from(bucket).getPublicURL(path: path)) ?? nil
     }
 
-    func downloadImage(bucket: String, path: String) async throws -> Data {
-        try await client.storage
-            .from(bucket)
-            .download(path: path)
+    func signedURL(bucket: String, path: String, expiresIn seconds: Int = 3600) async -> URL? {
+        do {
+            let url = try await client.storage.from(bucket).createSignedURL(path: path, expiresIn: seconds)
+            return url
+        } catch {
+            print("signedURL error:", error)
+            return nil
+        }
     }
 }
 ```

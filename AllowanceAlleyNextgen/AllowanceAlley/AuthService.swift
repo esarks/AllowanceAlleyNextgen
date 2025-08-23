@@ -1,3 +1,4 @@
+// AuthService.swift
 import Foundation
 import Combine
 import Supabase
@@ -6,146 +7,80 @@ import Supabase
 final class AuthService: ObservableObject {
     static let shared = AuthService()
 
-    // MARK: - Published state
     @Published var isAuthenticated = false
-    @Published var isEmailVerified = false
-    @Published var currentUser: AppUser?          // keep your existing type
-    @Published var currentSupabaseUser: User?
+    @Published var currentUser: AppUser?
     @Published var pendingVerificationEmail: String?
 
-    // MARK: - Private
     private let supabase = AppSupabase.shared
-    private var authStateListener: Task<Void, Never>?
+    private var authTask: Task<Void, Never>?
 
     private init() {}
 
-    // MARK: - Lifecycle
+    /// Start observers & prime current session (sync wrapper; spins async tasks)
     func initialize() {
-        Task {
-            await refreshSession()
-            startAuthListener()
+        // Observe auth state changes (v2 yields AuthStateChange with .event/.session)
+        authTask = Task { [weak self] in
+            guard let self else { return }
+            for await change in self.supabase.client.auth.authStateChanges {
+                await self.handleAuthEvent(change.event, session: change.session)
+            }
+        }
+
+        // Prime current session in its own async task
+        Task { [weak self] in
+            guard let self else { return }
+            if let session = try? await self.supabase.client.auth.session {
+                try? await self.loadUserFromSession(session)
+            } else {
+                self.isAuthenticated = false
+            }
         }
     }
 
-    /// Clear local auth-related state (useful on app start while developing).
-    func resetAuthenticationState() {
-        Task { await signOutLocally() }
-    }
-
-    // MARK: - Sign Up / Sign In / Sign Out
-
-    /// Email/password sign-up; Supabase emails a 6-digit OTP.
-    func signUp(email: String, password: String, familyName: String?) async throws {
-        let result = try await supabase.client.auth.signUp(email: email, password: password)
-        let user = result.user                               // non-optional in current SDK
-        currentSupabaseUser = user
-        isEmailVerified = (user.emailConfirmedAt != nil)
-
-        if isEmailVerified {
-            try await postLoginBootstrap(familyName: familyName)
-        } else {
-            pendingVerificationEmail = email
+    private func handleAuthEvent(_ event: AuthChangeEvent, session: Session?) async {
+        switch event {
+        case .initialSession, .signedIn, .tokenRefreshed, .userUpdated:
+            if let s = session ?? (try? await supabase.client.auth.session) {
+                try? await loadUserFromSession(s)
+            }
+        case .signedOut, .userDeleted:
             isAuthenticated = false
+            currentUser = nil
+            pendingVerificationEmail = nil
+        default:
+            break
         }
     }
 
-    func signIn(email: String, password: String) async throws {
-        _ = try await supabase.client.auth.signIn(email: email, password: password)
-        await refreshSession()
+    private func loadUserFromSession(_ session: Session) async throws {
+        let user = session.user
+        let db = DatabaseAPI.shared
+        let roleInfo = try await db.fetchUserRole(userId: user.id.uuidString)
+        currentUser = AppUser(
+            id: user.id.uuidString,
+            email: user.email,
+            role: roleInfo?.role ?? .parent,
+            familyId: roleInfo?.familyId
+        )
+        isAuthenticated = true
     }
 
-    /// Non-throwing sign-out: always clears local state so UI returns to login.
-    func signOut() async {
-        do { try await supabase.client.auth.signOut() }
-        catch { print("signOut error:", error) }     // keep for dev visibility
-        await signOutLocally()
-    }
+    // MARK: - Email OTP
 
-    // MARK: - OTP (real Supabase verification)
-    func resendVerificationCode() async throws {
-        guard let email = pendingVerificationEmail else { throw VerificationError.invalid }
-        try await supabase.client.auth.resend(email: email, type: .signup)
+    func sendCode(to email: String) async throws {
+        try await supabase.client.auth.signInWithOTP(email: email, shouldCreateUser: true)
+        pendingVerificationEmail = email
     }
 
     func verifyCode(_ code: String) async throws {
-        guard let email = pendingVerificationEmail else { throw VerificationError.invalid }
-
-        try await supabase.client.auth.verifyOTP(email: email, token: code, type: .signup)
-
-        let session = try await supabase.client.auth.session
-        await applySession(session)
-
-        pendingVerificationEmail = nil
-        isAuthenticated = true
-        isEmailVerified = true
-
-        try await postLoginBootstrap(familyName: nil)
-    }
-
-    // MARK: - Private
-    private func postLoginBootstrap(familyName: String?) async throws {
-        let session = try await supabase.client.auth.session
-        await applySession(session)
-        // e.g., ensure family exists using `familyName` if you choose to.
-    }
-
-    private func refreshSession() async {
-        do {
-            let session = try await supabase.client.auth.session
-            await applySession(session)
-        } catch {
-            await signOutLocally()
-        }
-    }
-
-    private func applySession(_ session: Session) async {
-        currentSupabaseUser = session.user
-        isEmailVerified = (session.user.emailConfirmedAt != nil)
-
-        // Load your profile from DB so familyId is set
-        await loadUserProfile(supabaseUser: session.user)
-
-        isAuthenticated = true
-    }
-
-    private func startAuthListener() {
-        authStateListener?.cancel()
-        authStateListener = Task { [weak self] in
-            guard let self else { return }
-            for await _ in self.supabase.client.auth.authStateChanges {
-                await self.refreshSession()
-            }
-        }
-    }
-
-    private func signOutLocally() async {
-        currentUser = nil
-        currentSupabaseUser = nil
-        isAuthenticated = false
-        isEmailVerified = false
+        guard let email = pendingVerificationEmail else { return }
+        try await supabase.client.auth.verifyOTP(email: email, token: code, type: .email)
         pendingVerificationEmail = nil
     }
 
-    // MARK: - Profile load (real fetch)
-    private func loadUserProfile(supabaseUser: User) async {
-        do {
-            if let profile = try await DatabaseAPI.shared.fetchProfile(userId: supabaseUser.id.uuidString) {
-                currentUser = profile
-            } else {
-                // Minimal bootstrap if profiles row doesn't exist yet (optional)
-                currentUser = AppUser(
-                    id: supabaseUser.id.uuidString,
-                    role: .parent,
-                    email: supabaseUser.email ?? "",
-                    displayName: (supabaseUser.email ?? "").split(separator: "@").first.map(String.init) ?? "User",
-                    familyId: nil,
-                    createdAt: Date()
-                )
-            }
-        } catch {
-            print("Profile load failed: \(error)")
+    func signOut() async {
+        do { try await supabase.client.auth.signOut() } catch {
+            print("signOut error:", error)
         }
     }
-
-    enum VerificationError: Error { case invalid }
 }

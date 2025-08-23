@@ -1,3 +1,4 @@
+
 import SwiftUI
 
 // MARK: - Reports
@@ -41,16 +42,8 @@ struct ParentSettingsView: View {
     @EnvironmentObject var authService: AuthService
     @EnvironmentObject var notificationsService: NotificationsService
 
-    // Safe strings for display
     private var emailText: String {
-        // Prefer AppUser.email, fall back to Supabase user’s email
-        authService.currentUser?.email
-        ?? authService.currentSupabaseUser?.email
-        ?? "Unknown"
-    }
-
-    private var familyNameText: String {
-        authService.currentUser?.displayName ?? "Not set"
+        authService.currentUser?.email ?? "Unknown"
     }
 
     var body: some View {
@@ -61,9 +54,11 @@ struct ParentSettingsView: View {
                         Text("Email"); Spacer()
                         Text(emailText).foregroundColor(.secondary)
                     }
-                    HStack {
-                        Text("Family Name"); Spacer()
-                        Text(familyNameText).foregroundColor(.secondary)
+                    if let familyName = authService.currentUser?.familyId {
+                        HStack {
+                            Text("Family ID"); Spacer()
+                            Text(familyName).font(.caption).foregroundColor(.secondary)
+                        }
                     }
                 }
 
@@ -186,8 +181,13 @@ struct ChildRewardsView: View {
     }
 }
 
-// Back-compat wrapper
 struct RewardsView: View {
     let childId: String
+    let familyId: String?   // keep for back-compat if anything still passes it
+    init(childId: String, familyId: String? = nil) {
+        self.childId = childId
+        self.familyId = familyId
+    }
     var body: some View { ChildRewardsView(childId: childId) }
 }
+

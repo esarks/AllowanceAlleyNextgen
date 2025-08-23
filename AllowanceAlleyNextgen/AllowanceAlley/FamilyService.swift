@@ -1,3 +1,4 @@
+
 import Foundation
 import Combine
 
@@ -6,35 +7,33 @@ final class FamilyService: ObservableObject {
     static let shared = FamilyService()
 
     @Published private(set) var family: Family?
-    @Published private(set) var children: [Child] = []
+    @Published private(set) var members: [FamilyMember] = []
 
     private let auth = AuthService.shared
     private let db = DatabaseAPI.shared
     private init() {}
 
-    func loadFamily() async {
+    func ensureFamilyExists(named defaultName: String = "My Family") async {
         guard let userId = auth.currentUser?.id else { return }
-        do { family = try await db.fetchFamily(for: userId) } catch { print(error) }
+        do {
+            if let fam = try await db.fetchFamilyByOwner(ownerId: userId) {
+                self.family = fam
+            } else {
+                self.family = try await db.createFamily(name: defaultName, ownerId: userId)
+            }
+        } catch {
+            print("ensureFamilyExists error:", error)
+        }
     }
 
-    func loadChildren() async {
-        guard let familyId = auth.currentUser?.familyId ?? auth.currentUser?.id else { return }
-        do { children = try await db.fetchChildren(familyId: familyId) } catch { print(error) }
+    func loadMembers() async {
+        guard let familyId = family?.id ?? auth.currentUser?.familyId else { return }
+        do { members = try await db.listFamilyMembers(familyId: familyId) } catch { print(error) }
     }
 
-    func createChild(name: String, birthdate: Date? = nil, pin: String? = nil) async throws {
-        guard let familyId = auth.currentUser?.familyId ?? auth.currentUser?.id else { return }
-        let created = try await db.createChild(familyId: familyId, displayName: name)
-        children.append(created)
-    }
-
-    func updateChild(_ child: Child) async throws {
-        let updated = try await db.updateChild(child)
-        if let i = children.firstIndex(where: { $0.id == updated.id }) { children[i] = updated }
-    }
-
-    func deleteChild(_ child: Child) async throws {
-        try await db.deleteChild(id: child.id)
-        children.removeAll { $0.id == child.id }
+    func addChild(_ name: String, age: Int?) async throws {
+        guard let familyId = family?.id ?? auth.currentUser?.familyId else { return }
+        let created = try await db.createChildMember(familyId: familyId, childName: name, age: age)
+        members.append(created)
     }
 }
