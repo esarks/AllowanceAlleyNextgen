@@ -1,14 +1,6 @@
-//
-//  SharedComponents.swift
-//  AllowanceAlleyNextgen
-//
-//  Created by Paul Marshall on 8/22/25.
-//
-
 import SwiftUI
 
-// MARK: - Shared UI Components
-
+// Small card used on the dashboard
 struct StatCard: View {
     let title: String
     let completed: Int
@@ -16,74 +8,22 @@ struct StatCard: View {
     let color: Color
 
     var body: some View {
-        VStack(spacing: 8) {
-            Text(title)
-                .font(.caption)
-                .foregroundColor(.secondary)
-
-            Text("\(completed)/\(total)")
-                .font(.title2)
-                .fontWeight(.bold)
-                .foregroundColor(color)
-
-            ProgressView(value: total > 0 ? Double(completed) / Double(total) : 0)
-                .tint(color)
+        VStack(alignment: .leading, spacing: 6) {
+            Text(title).font(.subheadline).foregroundColor(.secondary)
+            HStack(alignment: .firstTextBaseline, spacing: 4) {
+                Text("\(completed)").font(.title2).fontWeight(.bold)
+                Text("/ \(total)").foregroundColor(.secondary)
+            }
+            ProgressView(value: total == 0 ? 0 : Double(completed) / Double(max(total, 1)))
         }
         .padding()
-        .background(Color(UIColor.secondarySystemBackground))
+        .frame(maxWidth: .infinity, minHeight: 84, alignment: .leading)
+        .background(color.opacity(0.12))
         .cornerRadius(12)
     }
 }
 
-struct ChildSummaryCard: View {
-    let child: Child
-    @EnvironmentObject var rewardsService: RewardsService
-    @State private var pointsBalance = 0
-
-    var body: some View {
-        HStack {
-            Circle()
-                .fill(Color.blue.gradient)
-                .frame(width: 40, height: 40)
-                .overlay(
-                    Text(String(child.name.prefix(1)))
-                        .font(.headline)
-                        .foregroundColor(.white)
-                )
-
-            VStack(alignment: .leading, spacing: 4) {
-                Text(child.name)
-                    .font(.headline)
-
-                if let age = child.age {
-                    Text("Age \(age)")
-                        .font(.caption)
-                        .foregroundColor(.secondary)
-                }
-            }
-
-            Spacer()
-
-            VStack(alignment: .trailing, spacing: 4) {
-                Text("\(pointsBalance) points")
-                    .font(.subheadline)
-                    .fontWeight(.semibold)
-                    .foregroundColor(.blue)
-
-                Text("0 completed") // TODO: Get actual completions
-                    .font(.caption)
-                    .foregroundColor(.secondary)
-            }
-        }
-        .padding()
-        .background(Color(UIColor.secondarySystemBackground))
-        .cornerRadius(12)
-        .task {
-            pointsBalance = await rewardsService.getPointsBalance(for: child.id)
-        }
-    }
-}
-
+// Square action button used in the grid
 struct QuickActionButton: View {
     let icon: String
     let title: String
@@ -92,19 +32,40 @@ struct QuickActionButton: View {
 
     var body: some View {
         Button(action: action) {
-            VStack(spacing: 8) {
+            VStack(spacing: 10) {
                 Image(systemName: icon)
                     .font(.title2)
-                    .foregroundColor(color)
-
                 Text(title)
-                    .font(.caption)
-                    .foregroundColor(.primary)
+                    .font(.subheadline)
+                    .multilineTextAlignment(.center)
             }
-            .frame(maxWidth: .infinity)
-            .padding()
-            .background(Color(UIColor.secondarySystemBackground))
+            .frame(maxWidth: .infinity, minHeight: 84)
+            .padding(.vertical, 8)
+            .background(color.opacity(0.12))
             .cornerRadius(12)
         }
+        .buttonStyle(.plain)
+    }
+}
+
+// Row showing a child summary (name + placeholder stats)
+struct ChildSummaryCard: View {
+    let child: Child
+
+    var body: some View {
+        HStack(spacing: 12) {
+            Circle().fill(Color.blue.opacity(0.15)).frame(width: 40, height: 40)
+                .overlay(Image(systemName: "person.fill").foregroundColor(.blue))
+            VStack(alignment: .leading, spacing: 4) {
+                Text(child.name) // assumes your Child model exposes `name`
+                    .font(.headline)
+                Text("Tap a quick action to assign chores or rewards")
+                    .font(.caption).foregroundColor(.secondary)
+            }
+            Spacer()
+        }
+        .padding()
+        .background(Color(UIColor.secondarySystemBackground))
+        .cornerRadius(12)
     }
 }

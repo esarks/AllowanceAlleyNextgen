@@ -55,10 +55,9 @@ struct AddChildView: View {
     private func save() async {
         isSaving = true; defer { isSaving = false }
         do {
-            let bd: Date? = hasBirthdate ? birthdateValue : nil
             try await familyService.createChild(name: name.trimmingCharacters(in: .whitespaces),
-                                               birthdate: bd,
-                                               pin: pin)
+                                               birthdate: hasBirthdate ? birthdateValue : nil,
+                                               pin: pin.isEmpty ? nil : pin)
             dismiss()
         } catch {
             self.error = error.localizedDescription
@@ -79,7 +78,7 @@ struct AddChoreView: View {
     @State private var points = 10
     @State private var requirePhoto = false
 
-    // Simpler selection model to help the type checker
+    // Simpler selection model
     @State private var selected: [String: Bool] = [:]
 
     @State private var error: String?
@@ -126,7 +125,6 @@ struct AddChoreView: View {
                 }
             }
             .onAppear {
-                // initialize selection map once to keep ForEach simple
                 if selected.isEmpty {
                     var map: [String: Bool] = [:]
                     for c in familyService.children { map[c.id] = false }
@@ -143,12 +141,14 @@ struct AddChoreView: View {
         isSaving = true; defer { isSaving = false }
 
         let chore = Chore(
+            id: UUID().uuidString,
             familyId: familyId,
             title: title.trimmingCharacters(in: .whitespaces),
             description: description.isEmpty ? nil : description,
             points: points,
             requirePhoto: requirePhoto,
-            parentUserId: parentId
+            parentUserId: parentId,
+            createdAt: Date()
         )
 
         do {
@@ -199,11 +199,14 @@ struct AddRewardView: View {
         guard let familyId = authService.currentUser?.familyId ?? authService.currentUser?.id else { return }
         isSaving = true; defer { isSaving = false }
         do {
-            try await rewardsService.createReward(
-                Reward(familyId: familyId,
-                       name: name.trimmingCharacters(in: .whitespaces),
-                       costPoints: cost)
+            let reward = Reward(
+                id: UUID().uuidString,
+                familyId: familyId,
+                name: name.trimmingCharacters(in: .whitespaces),
+                costPoints: cost,
+                createdAt: Date()
             )
+            try await rewardsService.createReward(reward)
             dismiss()
         } catch {
             self.error = error.localizedDescription

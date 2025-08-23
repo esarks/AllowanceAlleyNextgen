@@ -1,8 +1,3 @@
-//
-//  AdditionalViews.swift
-//  AllowanceAlleyNextgen
-//
-
 import SwiftUI
 
 // MARK: - Reports
@@ -46,25 +41,35 @@ struct ParentSettingsView: View {
     @EnvironmentObject var authService: AuthService
     @EnvironmentObject var notificationsService: NotificationsService
 
+    // Safe strings for display
+    private var emailText: String {
+        // Prefer AppUser.email, fall back to Supabase user’s email
+        authService.currentUser?.email
+        ?? authService.currentSupabaseUser?.email
+        ?? "Unknown"
+    }
+
+    private var familyNameText: String {
+        authService.currentUser?.displayName ?? "Not set"
+    }
+
     var body: some View {
         NavigationView {
             List {
                 Section("Account") {
-                    if let user = authService.currentUser {
-                        HStack {
-                            Text("Email"); Spacer()
-                            Text(user.email).foregroundColor(.secondary)
-                        }
-                        HStack {
-                            Text("Family Name"); Spacer()
-                            Text(user.displayName).foregroundColor(.secondary)
-                        }
+                    HStack {
+                        Text("Email"); Spacer()
+                        Text(emailText).foregroundColor(.secondary)
+                    }
+                    HStack {
+                        Text("Family Name"); Spacer()
+                        Text(familyNameText).foregroundColor(.secondary)
                     }
                 }
 
                 Section("Notifications") {
                     Toggle("Allow Notifications", isOn: $notificationsService.isAuthorized)
-                        .disabled(true) // read-only snapshot of current status
+                        .disabled(true)
 
                     Button("Request Notification Permission") {
                         notificationsService.requestPermissions()
@@ -77,7 +82,6 @@ struct ParentSettingsView: View {
                 }
 
                 Section {
-                    // UPDATED: non-throwing sign out (always clears local state)
                     Button(role: .destructive) {
                         Task { await authService.signOut() }
                     } label: {
@@ -112,7 +116,6 @@ struct ChildSettingsView: View {
                 }
 
                 Section {
-                    // UPDATED: non-throwing sign out
                     Button(role: .destructive) {
                         Task { await authService.signOut() }
                     } label: {
@@ -179,20 +182,11 @@ struct ChildRewardsView: View {
     private func loadData() async {
         isLoading = true
         defer { isLoading = false }
-        do {
-            try await rewardsService.loadRewards()
-            try await rewardsService.loadPointsLedger()
-            try await rewardsService.loadRedemptions()
-        } catch {
-            self.error = error.localizedDescription
-        }
+        await rewardsService.loadAll()
     }
 }
 
-// MARK: - Back-compat wrapper (optional)
-
-/// Keep this so any existing calls to `RewardsView(childId:)` still compile.
-/// Internally it just shows `ChildRewardsView`.
+// Back-compat wrapper
 struct RewardsView: View {
     let childId: String
     var body: some View { ChildRewardsView(childId: childId) }

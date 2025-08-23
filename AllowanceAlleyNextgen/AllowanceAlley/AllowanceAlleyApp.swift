@@ -19,7 +19,6 @@ struct AllowanceAlleyApp: App {
                 .environmentObject(notificationsService)
                 .environmentObject(imageStore)
                 .onAppear {
-                    // handy during development; safe in production too
                     authService.initialize()
                 }
         }

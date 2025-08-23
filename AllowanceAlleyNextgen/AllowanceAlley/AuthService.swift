@@ -102,7 +102,7 @@ final class AuthService: ObservableObject {
         currentSupabaseUser = session.user
         isEmailVerified = (session.user.emailConfirmedAt != nil)
 
-        // TODO: replace with your real profile fetch
+        // Load your profile from DB so familyId is set
         await loadUserProfile(supabaseUser: session.user)
 
         isAuthenticated = true
@@ -126,19 +126,24 @@ final class AuthService: ObservableObject {
         pendingVerificationEmail = nil
     }
 
-    // Minimal placeholder so UI can run before you wire your real fetch.
+    // MARK: - Profile load (real fetch)
     private func loadUserProfile(supabaseUser: User) async {
-        if currentUser == nil {
-            let email = supabaseUser.email ?? ""
-            let display = email.split(separator: "@").first.map(String.init) ?? "User"
-            currentUser = AppUser(
-                id: supabaseUser.id.uuidString,
-                role: .parent,                 // adjust if you store roles elsewhere
-                email: email,
-                displayName: display,
-                familyId: nil,
-                createdAt: Date()
-            )
+        do {
+            if let profile = try await DatabaseAPI.shared.fetchProfile(userId: supabaseUser.id.uuidString) {
+                currentUser = profile
+            } else {
+                // Minimal bootstrap if profiles row doesn't exist yet (optional)
+                currentUser = AppUser(
+                    id: supabaseUser.id.uuidString,
+                    role: .parent,
+                    email: supabaseUser.email ?? "",
+                    displayName: (supabaseUser.email ?? "").split(separator: "@").first.map(String.init) ?? "User",
+                    familyId: nil,
+                    createdAt: Date()
+                )
+            }
+        } catch {
+            print("Profile load failed: \(error)")
         }
     }
 
