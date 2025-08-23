@@ -1,6 +1,6 @@
 # Swift Sources
 
-_Generated on Sat Aug 23 14:48:16 EDT 2025 from directory: ._
+_Generated on Sat Aug 23 15:43:32 EDT 2025 from directory: ._
 
 ## File: AdditionalViews.swift
 
@@ -8,7 +8,6 @@ _Generated on Sat Aug 23 14:48:16 EDT 2025 from directory: ._
 import SwiftUI
 
 // MARK: - Reports
-
 struct ReportsView: View {
     @EnvironmentObject var choreService: ChoreService
     @EnvironmentObject var familyService: FamilyService
@@ -43,21 +42,12 @@ struct ReportsView: View {
 }
 
 // MARK: - Parent Settings
-
 struct ParentSettingsView: View {
     @EnvironmentObject var authService: AuthService
     @EnvironmentObject var notificationsService: NotificationsService
 
-    // Safe strings for display
     private var emailText: String {
-        // Prefer AppUser.email, fall back to Supabase user’s email
-        authService.currentUser?.email
-        ?? authService.currentSupabaseUser?.email
-        ?? "Unknown"
-    }
-
-    private var familyNameText: String {
-        authService.currentUser?.displayName ?? "Not set"
+        authService.currentUser?.email ?? "Unknown"
     }
 
     var body: some View {
@@ -68,16 +58,17 @@ struct ParentSettingsView: View {
                         Text("Email"); Spacer()
                         Text(emailText).foregroundColor(.secondary)
                     }
-                    HStack {
-                        Text("Family Name"); Spacer()
-                        Text(familyNameText).foregroundColor(.secondary)
+                    if let familyId = authService.currentUser?.familyId {
+                        HStack {
+                            Text("Family ID"); Spacer()
+                            Text(familyId).font(.caption).foregroundColor(.secondary)
+                        }
                     }
                 }
 
                 Section("Notifications") {
                     Toggle("Allow Notifications", isOn: $notificationsService.isAuthorized)
                         .disabled(true)
-
                     Button("Request Notification Permission") {
                         notificationsService.requestPermissions()
                     }
@@ -91,9 +82,7 @@ struct ParentSettingsView: View {
                 Section {
                     Button(role: .destructive) {
                         Task { await authService.signOut() }
-                    } label: {
-                        Text("Sign Out")
-                    }
+                    } label: { Text("Sign Out") }
                 }
             }
             .navigationTitle("Settings")
@@ -102,7 +91,6 @@ struct ParentSettingsView: View {
 }
 
 // MARK: - Child Settings
-
 struct ChildSettingsView: View {
     let childId: String
     @EnvironmentObject var authService: AuthService
@@ -116,18 +104,14 @@ struct ChildSettingsView: View {
                         Text(childId).font(.caption).foregroundColor(.secondary)
                     }
                 }
-
                 Section("Privacy") {
                     Text("Your data is safe with us")
                         .font(.caption).foregroundColor(.secondary)
                 }
-
                 Section {
                     Button(role: .destructive) {
                         Task { await authService.signOut() }
-                    } label: {
-                        Text("Sign Out")
-                    }
+                    } label: { Text("Sign Out") }
                 }
             }
             .navigationTitle("Settings")
@@ -136,10 +120,10 @@ struct ChildSettingsView: View {
 }
 
 // MARK: - Child Rewards
-
 struct ChildRewardsView: View {
     let childId: String
     @EnvironmentObject var rewardsService: RewardsService
+    @EnvironmentObject var authService: AuthService
 
     @State private var isLoading = false
     @State private var error: String?
@@ -150,11 +134,9 @@ struct ChildRewardsView: View {
                 if let error {
                     Text(error).foregroundColor(.red)
                 }
-
                 if rewardsService.rewards.isEmpty && !isLoading {
                     Text("No rewards yet").foregroundColor(.secondary)
                 }
-
                 ForEach(rewardsService.rewards) { reward in
                     HStack {
                         VStack(alignment: .leading, spacing: 4) {
@@ -189,13 +171,25 @@ struct ChildRewardsView: View {
     private func loadData() async {
         isLoading = true
         defer { isLoading = false }
-        await rewardsService.loadAll()
+        guard let famId = authService.currentUser?.familyId else {
+            self.error = "No family selected"
+            return
+        }
+        await rewardsService.loadAll(familyId: famId)
     }
 }
 
-// Back-compat wrapper
+// MARK: - Back-compat wrapper
+/// Accepts current and legacy initializers so existing call sites compile.
 struct RewardsView: View {
     let childId: String
+
+    init(childId: String, familyId: String? = nil) {
+        self.childId = childId
+    }
+    init(_ childId: String) { self.childId = childId }          // very old unlabeled usage
+    init(familyId: String) { self.childId = familyId }           // very old family-only usage
+
     var body: some View { ChildRewardsView(childId: childId) }
 }
 ```
@@ -221,7 +215,7 @@ struct AllowanceAlleyApp: App {
                 .environmentObject(choreService)
                 .environmentObject(rewardsService)
                 .task {
-                    await authService.initialize()
+                    authService.initialize()
                 }
         }
     }
@@ -289,26 +283,25 @@ struct AppConfig {
 ## File: AppSupabase.swift
 
 ```swift
-
+// AppSupabase.swift — collision-proof version
 import Foundation
 import Supabase
 
+// Use a unique name so it can't collide with any previous 'AppConfig'.
 enum AppEnv {
-    static var supabaseURL: URL {
-        if let s = ProcessInfo.processInfo.environment["SUPABASE_URL"], let u = URL(string: s) {
-            return u
-        }
-        if let s = Bundle.main.object(forInfoDictionaryKey: "SUPABASE_URL") as? String, let u = URL(string: s) {
-            return u
-        }
-        return URL(string: "https://YOUR-PROJECT.supabase.co")!
-    }
+    static let url: URL = {
+        if let env = ProcessInfo.processInfo.environment["SUPABASE_URL"],
+           let u = URL(string: env) { return u }
+        if let s = Bundle.main.object(forInfoDictionaryKey: "SUPABASE_URL") as? String,
+           let u = URL(string: s) { return u }
+        preconditionFailure("Missing SUPABASE_URL. Provide ENV or Info.plist.")
+    }()
 
-    static var supabaseAnonKey: String {
+    static let anonKey: String = {
         if let k = ProcessInfo.processInfo.environment["SUPABASE_ANON_KEY"] { return k }
         if let k = Bundle.main.object(forInfoDictionaryKey: "SUPABASE_ANON_KEY") as? String { return k }
-        return "YOUR-ANON-KEY"
-    }
+        preconditionFailure("Missing SUPABASE_ANON_KEY. Provide ENV or Info.plist.")
+    }()
 }
 
 final class AppSupabase {
@@ -316,7 +309,7 @@ final class AppSupabase {
     let client: SupabaseClient
 
     private init() {
-        client = SupabaseClient(supabaseURL: AppEnv.supabaseURL, supabaseKey: AppEnv.supabaseAnonKey)
+        client = SupabaseClient(supabaseURL: AppEnv.url, supabaseKey: AppEnv.anonKey)
     }
 }
 ```
@@ -324,8 +317,7 @@ final class AppSupabase {
 ## File: AuthService.swift
 
 ```swift
-
-// AuthService.swift — Supabase Swift v2 compatible
+// AuthService.swift — Supabase Swift v2 friendly, no mock services
 import Foundation
 import Combine
 import Supabase
@@ -334,7 +326,7 @@ import Supabase
 final class AuthService: ObservableObject {
     static let shared = AuthService()
 
-    @Published var isAuthenticated: Bool = false
+    @Published var isAuthenticated = false
     @Published var currentUser: AppUser?
     @Published var pendingVerificationEmail: String?
 
@@ -343,33 +335,37 @@ final class AuthService: ObservableObject {
 
     private init() {}
 
-    func initialize() async {
-        // Observe auth state changes
-        authTask = Task {
-            for await event in supabase.client.auth.authStateChanges {
-                await self.handleAuthEvent(event)
+    /// Start observers & prime current session (sync wrapper; spins async tasks)
+    func initialize() {
+        // Observe auth state changes (v2 exposes `AuthStateChange` with `event` and `session`)
+        authTask = Task { [weak self] in
+            guard let self else { return }
+            for await change in self.supabase.client.auth.authStateChanges {
+                await self.handleAuthEvent(change.event, session: change.session)
             }
         }
 
-        // Prime current session (in Supabase Swift v2 this returns non-optional Session)
-        do {
-            let session = try await supabase.client.auth.session
-            try await self.loadUserFromSession(session)
-        } catch {
-            self.isAuthenticated = false
+        // Prime current session in its own async task
+        Task { [weak self] in
+            guard let self else { return }
+            if let session = try? await self.supabase.client.auth.session {
+                try? await self.loadUserFromSession(session)
+            } else {
+                self.isAuthenticated = false
+            }
         }
     }
 
-    private func handleAuthEvent(_ event: AuthChangeEvent) async {
+    private func handleAuthEvent(_ event: AuthChangeEvent, session: Session?) async {
         switch event {
         case .initialSession, .signedIn, .tokenRefreshed, .userUpdated:
-            if let session = try? await supabase.client.auth.session {
-                try? await self.loadUserFromSession(session)
+            if let s = session {
+                try? await loadUserFromSession(s)
             }
         case .signedOut, .userDeleted:
-            self.isAuthenticated = false
-            self.currentUser = nil
-            self.pendingVerificationEmail = nil
+            isAuthenticated = false
+            currentUser = nil
+            pendingVerificationEmail = nil
         default:
             break
         }
@@ -379,31 +375,32 @@ final class AuthService: ObservableObject {
         let user = session.user
         let db = DatabaseAPI.shared
         let roleInfo = try await db.fetchUserRole(userId: user.id.uuidString)
-        let appUser = AppUser(
+        currentUser = AppUser(
             id: user.id.uuidString,
             email: user.email,
             role: roleInfo?.role ?? .parent,
             familyId: roleInfo?.familyId
         )
-        self.currentUser = appUser
-        self.isAuthenticated = true
+        isAuthenticated = true
     }
 
-    // MARK: - Email OTP (6-digit code)
+    // MARK: - Email OTP
 
     func sendCode(to email: String) async throws {
         try await supabase.client.auth.signInWithOTP(email: email, shouldCreateUser: true)
-        self.pendingVerificationEmail = email
+        pendingVerificationEmail = email
     }
 
     func verifyCode(_ code: String) async throws {
         guard let email = pendingVerificationEmail else { return }
         try await supabase.client.auth.verifyOTP(email: email, token: code, type: .email)
-        self.pendingVerificationEmail = nil
+        pendingVerificationEmail = nil
     }
 
     func signOut() async {
-        do { try await supabase.client.auth.signOut() } catch { print("signOut error:", error) }
+        do { try await supabase.client.auth.signOut() } catch {
+            print("signOut error:", error)
+        }
     }
 }
 ```
@@ -709,33 +706,56 @@ import SwiftUI
 
 struct DashboardView: View {
     @EnvironmentObject var authService: AuthService
-    @EnvironmentObject var familyService: FamilyService
     @EnvironmentObject var choreService: ChoreService
     @EnvironmentObject var rewardsService: RewardsService
+
+    @State private var isLoading = false
+    @State private var error: String?
 
     var body: some View {
         NavigationView {
             List {
-                Text("Dashboard").font(.headline)
+                if let error {
+                    Text(error).foregroundColor(.red)
+                }
 
-                Section {
-                    Text("Children: \(familyService.children.count)")
-                    Text("Pending approvals: \(choreService.pendingApprovals.count)")
+                Section("Family") {
+                    Text("Family ID")
+                    Spacer()
+                    Text(authService.currentUser?.familyId ?? "None")
+                        .font(.caption)
+                        .foregroundColor(.secondary)
+                }
+
+                Section("Actions") {
+                    Button {
+                        Task { await refresh() }
+                    } label: {
+                        if isLoading {
+                            ProgressView().progressViewStyle(.circular)
+                        } else {
+                            Text("Refresh Data")
+                        }
+                    }
                 }
             }
             .navigationTitle("Dashboard")
-            .task { await loadDashboardData() }
+            .task { await refresh() }
         }
     }
 
-    private func loadDashboardData() async {
-        // Load family + children
-        await familyService.loadFamily()
-        await familyService.loadChildren()
+    private func refresh() async {
+        isLoading = true
+        defer { isLoading = false }
 
-        // Load chores/assignments/completions + rewards/redemptions
-        await choreService.loadAll()
-        await rewardsService.loadAll()
+        guard let familyId = authService.currentUser?.familyId else {
+            self.error = "No family selected"
+            return
+        }
+
+        // These service APIs expect a familyId
+        await choreService.loadAll(for: familyId)
+        await rewardsService.loadAll(familyId: familyId)
     }
 }
 ```
@@ -1729,13 +1749,12 @@ import SwiftUI
 
 struct AddChildView: View {
     @Environment(\.dismiss) private var dismiss
-    @EnvironmentObject var familyService: FamilyService
     @EnvironmentObject var authService: AuthService
 
     @State private var name = ""
     @State private var hasBirthdate = false
     @State private var birthdateValue = Date()
-    @State private var pin = ""
+    @State private var pin = ""               // kept for UI; not sent to DB
 
     @State private var error: String?
     @State private var isSaving = false
@@ -1754,7 +1773,7 @@ struct AddChildView: View {
                                    displayedComponents: .date)
                     }
 
-                    TextField("4‑digit PIN (optional)", text: $pin)
+                    TextField("4-digit PIN (optional)", text: $pin)
                         .keyboardType(.numberPad)
                 }
 
@@ -1779,10 +1798,28 @@ struct AddChildView: View {
 
     private func save() async {
         isSaving = true; defer { isSaving = false }
+        guard let familyId = authService.currentUser?.familyId,
+              let parentId = authService.currentUser?.id else {
+            self.error = "Missing family or user context"
+            return
+        }
+
         do {
-            try await familyService.createChild(name: name.trimmingCharacters(in: .whitespaces),
-                                               birthdate: hasBirthdate ? birthdateValue : nil,
-                                               pin: pin.isEmpty ? nil : pin)
+            // Prefer the canonical family_members entry for a child
+            _ = try await DatabaseAPI.shared.createChildMember(
+                familyId: familyId,
+                childName: name.trimmingCharacters(in: .whitespaces),
+                age: nil
+            )
+
+            // Optional: also create a child profile record if you’re using that table
+            // _ = try await DatabaseAPI.shared.createChildProfile(
+            //     parentUserId: parentId,
+            //     name: name.trimmingCharacters(in: .whitespaces),
+            //     birthdate: hasBirthdate ? birthdateValue : nil,
+            //     avatarURL: nil
+            // )
+
             dismiss()
         } catch {
             self.error = error.localizedDescription
@@ -1792,10 +1829,13 @@ struct AddChildView: View {
 
 // MARK: - Add Chore
 
+private struct SelectableChild: Identifiable, Hashable {
+    let id: String
+    let name: String
+}
+
 struct AddChoreView: View {
     @Environment(\.dismiss) private var dismiss
-    @EnvironmentObject var choreService: ChoreService
-    @EnvironmentObject var familyService: FamilyService
     @EnvironmentObject var authService: AuthService
 
     @State private var title = ""
@@ -1803,11 +1843,12 @@ struct AddChoreView: View {
     @State private var points = 10
     @State private var requirePhoto = false
 
-    // Simpler selection model
-    @State private var selected: [String: Bool] = [:]
+    @State private var children: [SelectableChild] = []
+    @State private var selected: Set<String> = []
 
     @State private var error: String?
     @State private var isSaving = false
+    @State private var isLoadingKids = false
 
     var body: some View {
         NavigationView {
@@ -1820,15 +1861,21 @@ struct AddChoreView: View {
                 }
 
                 Section("Assign to") {
-                    if familyService.children.isEmpty {
+                    if isLoadingKids {
+                        ProgressView().progressViewStyle(.circular)
+                    } else if children.isEmpty {
                         Text("No children yet").foregroundColor(.secondary)
                     } else {
-                        ForEach(familyService.children) { child in
-                            let isOn = Binding(
-                                get: { selected[child.id] ?? false },
-                                set: { selected[child.id] = $0 }
-                            )
-                            Toggle(child.name, isOn: isOn)
+                        ForEach(children) { child in
+                            Toggle(isOn: Binding(
+                                get: { selected.contains(child.id) },
+                                set: { isOn in
+                                    if isOn { selected.insert(child.id) }
+                                    else { selected.remove(child.id) }
+                                })
+                            ) {
+                                Text(child.name)
+                            }
                         }
                     }
                 }
@@ -1849,36 +1896,59 @@ struct AddChoreView: View {
                     .disabled(isSaving || title.trimmingCharacters(in: .whitespaces).isEmpty)
                 }
             }
-            .onAppear {
-                if selected.isEmpty {
-                    var map: [String: Bool] = [:]
-                    for c in familyService.children { map[c.id] = false }
-                    selected = map
-                }
+            .task { await loadChildren() }
+        }
+    }
+
+    private func loadChildren() async {
+        guard let familyId = authService.currentUser?.familyId else { return }
+        isLoadingKids = true
+        defer { isLoadingKids = false }
+        do {
+            // Pull family members with child role
+            let members = try await DatabaseAPI.shared.listFamilyMembers(
+                familyId: familyId,
+                role: .child
+            )
+            self.children = members.map {
+                // Try common name keys; fall back to id
+                SelectableChild(id: $0.id, name: ($0.name ?? $0.childName ?? "Child \($0.id.prefix(4))"))
             }
+        } catch {
+            self.error = error.localizedDescription
         }
     }
 
     private func save() async {
-        guard let parentId = authService.currentUser?.id,
-              let familyId = authService.currentUser?.familyId ?? authService.currentUser?.id else { return }
+        guard let familyId = authService.currentUser?.familyId,
+              let parentId = authService.currentUser?.id else {
+            self.error = "Missing family or user context"
+            return
+        }
 
         isSaving = true; defer { isSaving = false }
 
-        let chore = Chore(
-            id: UUID().uuidString,
-            familyId: familyId,
-            title: title.trimmingCharacters(in: .whitespaces),
-            description: description.isEmpty ? nil : description,
-            points: points,
-            requirePhoto: requirePhoto,
-            parentUserId: parentId,
-            createdAt: Date()
-        )
-
         do {
-            let childIds = selected.filter { $0.value }.map { $0.key }
-            try await choreService.createChore(chore, assignedTo: childIds)
+            // Create chore
+            let chore = try await DatabaseAPI.shared.createChore(
+                familyId: familyId,
+                title: title.trimmingCharacters(in: .whitespaces),
+                description: description.isEmpty ? nil : description,
+                points: points,
+                requirePhoto: requirePhoto,
+                recurrence: nil,
+                parentUserId: parentId
+            )
+
+            // Assign to selected members
+            for childId in selected {
+                _ = try await DatabaseAPI.shared.assignChore(
+                    choreId: chore.id,
+                    memberId: childId,
+                    due: nil
+                )
+            }
+
             dismiss()
         } catch {
             self.error = error.localizedDescription
@@ -1890,7 +1960,6 @@ struct AddChoreView: View {
 
 struct AddRewardView: View {
     @Environment(\.dismiss) private var dismiss
-    @EnvironmentObject var rewardsService: RewardsService
     @EnvironmentObject var authService: AuthService
 
     @State private var name = ""
@@ -1921,17 +1990,14 @@ struct AddRewardView: View {
     }
 
     private func save() async {
-        guard let familyId = authService.currentUser?.familyId ?? authService.currentUser?.id else { return }
+        guard let familyId = authService.currentUser?.familyId else { return }
         isSaving = true; defer { isSaving = false }
         do {
-            let reward = Reward(
-                id: UUID().uuidString,
+            _ = try await DatabaseAPI.shared.createReward(
                 familyId: familyId,
                 name: name.trimmingCharacters(in: .whitespaces),
-                costPoints: cost,
-                createdAt: Date()
+                costPoints: cost
             )
-            try await rewardsService.createReward(reward)
             dismiss()
         } catch {
             self.error = error.localizedDescription
@@ -1942,31 +2008,57 @@ struct AddRewardView: View {
 // MARK: - Approvals
 
 struct ApprovalsView: View {
-    @EnvironmentObject var choreService: ChoreService
+    @EnvironmentObject var authService: AuthService
+
+    @State private var items: [ChoreCompletion] = []
+    @State private var isLoading = false
     @State private var error: String?
 
     var body: some View {
         List {
-            if choreService.pendingApprovals.isEmpty {
+            if let error { Text(error).foregroundColor(.red) }
+
+            if items.isEmpty && !isLoading {
                 Text("Nothing to approve right now").foregroundColor(.secondary)
-            } else {
-                ForEach(choreService.pendingApprovals) { c in
-                    ApprovalRow(completion: c) { action in
-                        Task {
-                            do {
-                                switch action {
-                                case .approve: try await choreService.approveCompletion(c)
-                                case .reject:  try await choreService.rejectCompletion(c)
-                                }
-                            } catch { self.error = error.localizedDescription }
-                        }
-                    }
-                }
             }
 
-            if let error { Text(error).foregroundColor(.red) }
+            ForEach(items) { c in
+                ApprovalRow(completion: c) { action in
+                    Task { await act(on: c, action: action) }
+                }
+            }
         }
         .navigationTitle("Approvals")
+        .task { await load() }
+        .refreshable { await load() }
+    }
+
+    private func load() async {
+        guard let familyId = authService.currentUser?.familyId else { return }
+        isLoading = true
+        defer { isLoading = false }
+        do {
+            let all = try await DatabaseAPI.shared.fetchCompletionsForFamily(familyId: familyId)
+            // Keep only pending
+            self.items = all.filter { $0.status == .pending }
+        } catch {
+            self.error = error.localizedDescription
+        }
+    }
+
+    private func act(on c: ChoreCompletion, action: ApprovalAction) async {
+        guard let reviewer = authService.currentUser?.id else { return }
+        do {
+            let newStatus: CompletionStatus = (action == .approve) ? .approved : .rejected
+            _ = try await DatabaseAPI.shared.reviewCompletion(
+                id: c.id,
+                status: newStatus,
+                reviewedBy: reviewer
+            )
+            await load()
+        } catch {
+            self.error = error.localizedDescription
+        }
     }
 }
 
@@ -2150,28 +2242,17 @@ struct ChildSummaryCard: View {
 ## File: StorageAPI.swift
 
 ```swift
-
 import Foundation
 import Supabase
 
 struct StorageAPI {
     static let shared = StorageAPI()
     private let client = AppSupabase.shared.client
-
     private init() {}
 
     func publicURL(bucket: String, path: String) -> URL? {
-        return (try? client.storage.from(bucket).getPublicURL(path: path)) ?? nil
-    }
-
-    func signedURL(bucket: String, path: String, expiresIn seconds: Int = 3600) async -> URL? {
-        do {
-            let url = try await client.storage.from(bucket).createSignedURL(path: path, expiresIn: seconds)
-            return url
-        } catch {
-            print("signedURL error:", error)
-            return nil
-        }
+        // Some SDK versions mark this as `throws`; keep it safe.
+        return try? client.storage.from(bucket).getPublicURL(path: path)
     }
 }
 ```

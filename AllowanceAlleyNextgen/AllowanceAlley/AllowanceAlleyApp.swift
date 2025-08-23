@@ -16,7 +16,7 @@ struct AllowanceAlleyApp: App {
                 .environmentObject(choreService)
                 .environmentObject(rewardsService)
                 .task {
-                    await authService.initialize()
+                    authService.initialize()
                 }
         }
     }

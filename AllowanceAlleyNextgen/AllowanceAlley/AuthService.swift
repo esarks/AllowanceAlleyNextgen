@@ -1,4 +1,4 @@
-// AuthService.swift
+// AuthService.swift — Supabase Swift v2 friendly, no mock services
 import Foundation
 import Combine
 import Supabase
@@ -18,7 +18,7 @@ final class AuthService: ObservableObject {
 
     /// Start observers & prime current session (sync wrapper; spins async tasks)
     func initialize() {
-        // Observe auth state changes (v2 yields AuthStateChange with .event/.session)
+        // Observe auth state changes (v2 exposes `AuthStateChange` with `event` and `session`)
         authTask = Task { [weak self] in
             guard let self else { return }
             for await change in self.supabase.client.auth.authStateChanges {
@@ -40,7 +40,7 @@ final class AuthService: ObservableObject {
     private func handleAuthEvent(_ event: AuthChangeEvent, session: Session?) async {
         switch event {
         case .initialSession, .signedIn, .tokenRefreshed, .userUpdated:
-            if let s = session ?? (try? await supabase.client.auth.session) {
+            if let s = session {
                 try? await loadUserFromSession(s)
             }
         case .signedOut, .userDeleted:

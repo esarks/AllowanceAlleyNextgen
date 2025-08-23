@@ -168,19 +168,17 @@
 			isa = PBXGroup;
 			children = (
 				60871D392E58BF9600A93CEF /* AdditionalViews.swift */,
-				609E3DF92E59D0FB0007A3EF /* ParentSheets.swift */,
 				601FC44B2E58824600261E65 /* AllowanceAlleyApp.swift */,
+				609E3E032E5A43B00007A3EF /* AnyEncodable.swift */,
 				601FC44C2E58824600261E65 /* AppConfig.swift */,
 				601FC4672E58857200261E65 /* AppSupabase.swift */,
 				60871D3D2E58C5E700A93CEF /* AuthenticationView.swift */,
 				601FC44D2E58824600261E65 /* AuthService.swift */,
 				601FC44E2E58824600261E65 /* ChoreService.swift */,
-				601FC4192E5878D500261E65 /* Configure */,
 				601FC44F2E58824600261E65 /* ContentView.swift */,
 				601FC4502E58824600261E65 /* CoreDataStack.swift */,
 				601FC4512E58824600261E65 /* DashboardView.swift */,
 				601FC4682E58857200261E65 /* DatabaseAPI.swift */,
-				609E3E032E5A43B00007A3EF /* AnyEncodable.swift */,
 				60871D372E58BF6600A93CEF /* EmailVerificationView.swift */,
 				601FC4522E58824600261E65 /* FamilyService.swift */,
 				601FC4532E58824600261E65 /* ImageStore.swift */,
@@ -188,9 +186,11 @@
 				601FC4542E58824600261E65 /* Models.swift */,
 				601FC4552E58824600261E65 /* NotificationsService.swift */,
 				60871D3F2E58C60700A93CEF /* ParentDashboardView.swift */,
+				609E3DF92E59D0FB0007A3EF /* ParentSheets.swift */,
 				601FC4562E58824600261E65 /* RewardsService.swift */,
 				60871D412E58C62800A93CEF /* SharedComponents.swift */,
 				601FC46B2E5885C500261E65 /* StorageAPI.swift */,
+				601FC4192E5878D500261E65 /* Configure */,
 			);
 			path = AllowanceAlley;
 			sourceTree = "<group>";

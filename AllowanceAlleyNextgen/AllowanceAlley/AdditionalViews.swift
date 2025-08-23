@@ -1,8 +1,6 @@
-
 import SwiftUI
 
 // MARK: - Reports
-
 struct ReportsView: View {
     @EnvironmentObject var choreService: ChoreService
     @EnvironmentObject var familyService: FamilyService
@@ -37,7 +35,6 @@ struct ReportsView: View {
 }
 
 // MARK: - Parent Settings
-
 struct ParentSettingsView: View {
     @EnvironmentObject var authService: AuthService
     @EnvironmentObject var notificationsService: NotificationsService
@@ -54,10 +51,10 @@ struct ParentSettingsView: View {
                         Text("Email"); Spacer()
                         Text(emailText).foregroundColor(.secondary)
                     }
-                    if let familyName = authService.currentUser?.familyId {
+                    if let familyId = authService.currentUser?.familyId {
                         HStack {
                             Text("Family ID"); Spacer()
-                            Text(familyName).font(.caption).foregroundColor(.secondary)
+                            Text(familyId).font(.caption).foregroundColor(.secondary)
                         }
                     }
                 }
@@ -65,7 +62,6 @@ struct ParentSettingsView: View {
                 Section("Notifications") {
                     Toggle("Allow Notifications", isOn: $notificationsService.isAuthorized)
                         .disabled(true)
-
                     Button("Request Notification Permission") {
                         notificationsService.requestPermissions()
                     }
@@ -79,9 +75,7 @@ struct ParentSettingsView: View {
                 Section {
                     Button(role: .destructive) {
                         Task { await authService.signOut() }
-                    } label: {
-                        Text("Sign Out")
-                    }
+                    } label: { Text("Sign Out") }
                 }
             }
             .navigationTitle("Settings")
@@ -90,7 +84,6 @@ struct ParentSettingsView: View {
 }
 
 // MARK: - Child Settings
-
 struct ChildSettingsView: View {
     let childId: String
     @EnvironmentObject var authService: AuthService
@@ -104,18 +97,14 @@ struct ChildSettingsView: View {
                         Text(childId).font(.caption).foregroundColor(.secondary)
                     }
                 }
-
                 Section("Privacy") {
                     Text("Your data is safe with us")
                         .font(.caption).foregroundColor(.secondary)
                 }
-
                 Section {
                     Button(role: .destructive) {
                         Task { await authService.signOut() }
-                    } label: {
-                        Text("Sign Out")
-                    }
+                    } label: { Text("Sign Out") }
                 }
             }
             .navigationTitle("Settings")
@@ -124,10 +113,10 @@ struct ChildSettingsView: View {
 }
 
 // MARK: - Child Rewards
-
 struct ChildRewardsView: View {
     let childId: String
     @EnvironmentObject var rewardsService: RewardsService
+    @EnvironmentObject var authService: AuthService
 
     @State private var isLoading = false
     @State private var error: String?
@@ -138,11 +127,9 @@ struct ChildRewardsView: View {
                 if let error {
                     Text(error).foregroundColor(.red)
                 }
-
                 if rewardsService.rewards.isEmpty && !isLoading {
                     Text("No rewards yet").foregroundColor(.secondary)
                 }
-
                 ForEach(rewardsService.rewards) { reward in
                     HStack {
                         VStack(alignment: .leading, spacing: 4) {
@@ -177,17 +164,24 @@ struct ChildRewardsView: View {
     private func loadData() async {
         isLoading = true
         defer { isLoading = false }
-        await rewardsService.loadAll()
+        guard let famId = authService.currentUser?.familyId else {
+            self.error = "No family selected"
+            return
+        }
+        await rewardsService.loadAll(familyId: famId)
     }
 }
 
+// MARK: - Back-compat wrapper
+/// Accepts current and legacy initializers so existing call sites compile.
 struct RewardsView: View {
     let childId: String
-    let familyId: String?   // keep for back-compat if anything still passes it
+
     init(childId: String, familyId: String? = nil) {
         self.childId = childId
-        self.familyId = familyId
     }
+    init(_ childId: String) { self.childId = childId }          // very old unlabeled usage
+    init(familyId: String) { self.childId = familyId }           // very old family-only usage
+
     var body: some View { ChildRewardsView(childId: childId) }
 }
-
