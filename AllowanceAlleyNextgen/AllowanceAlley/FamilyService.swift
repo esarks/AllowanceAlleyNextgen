@@ -4,51 +4,37 @@ import Combine
 @MainActor
 final class FamilyService: ObservableObject {
     static let shared = FamilyService()
-    
-    @Published var currentFamily: Family?
-    @Published var children: [Child] = []
-    @Published var familyMembers: [FamilyMember] = []
-    
-    private let authService = AuthService.shared
-    
+
+    @Published private(set) var family: Family?
+    @Published private(set) var children: [Child] = []
+
+    private let auth = AuthService.shared
+    private let db = DatabaseAPI.shared
     private init() {}
-    
-    func loadFamily() async throws {
-        guard let userId = authService.currentUser?.id else { return }
-        if let family = try await DatabaseAPI.shared.fetchFamily(id: userId) {
-            currentFamily = family
-        }
-        children = try await DatabaseAPI.shared.fetchChildren(parentUserId: userId)
+
+    func loadFamily() async {
+        guard let userId = auth.currentUser?.id else { return }
+        do { family = try await db.fetchFamily(for: userId) } catch { print(error) }
     }
-    
-    func createChild(name: String, birthdate: Date?, pin: String) async throws {
-        guard let userId = authService.currentUser?.id else { throw FamilyError.notAuthenticated }
-        let child = Child(parentUserId: userId, name: name, birthdate: birthdate)
-        let created = try await DatabaseAPI.shared.createChild(child)
+
+    func loadChildren() async {
+        guard let familyId = auth.currentUser?.familyId ?? auth.currentUser?.id else { return }
+        do { children = try await db.fetchChildren(familyId: familyId) } catch { print(error) }
+    }
+
+    func createChild(name: String, birthdate: Date? = nil, pin: String? = nil) async throws {
+        guard let familyId = auth.currentUser?.familyId ?? auth.currentUser?.id else { return }
+        let created = try await db.createChild(familyId: familyId, displayName: name)
         children.append(created)
     }
-    
-    func updateChild(_ child: Child) async throws {
-        if let index = children.firstIndex(where: { $0.id == child.id }) {
-            children[index] = child
-        }
-    }
-    
-    func deleteChild(_ child: Child) async throws {
-        children.removeAll { $0.id == child.id }
-    }
-}
 
-enum FamilyError: LocalizedError {
-    case notAuthenticated
-    case familyNotFound
-    
-    var errorDescription: String? {
-        switch self {
-        case .notAuthenticated:
-            return "Not authenticated"
-        case .familyNotFound:
-            return "Family not found"
-        }
+    func updateChild(_ child: Child) async throws {
+        let updated = try await db.updateChild(child)
+        if let i = children.firstIndex(where: { $0.id == updated.id }) { children[i] = updated }
+    }
+
+    func deleteChild(_ child: Child) async throws {
+        try await db.deleteChild(id: child.id)
+        children.removeAll { $0.id == child.id }
     }
 }

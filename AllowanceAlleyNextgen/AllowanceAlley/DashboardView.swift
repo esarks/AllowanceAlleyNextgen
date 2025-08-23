@@ -5,32 +5,29 @@ struct DashboardView: View {
     @EnvironmentObject var familyService: FamilyService
     @EnvironmentObject var choreService: ChoreService
     @EnvironmentObject var rewardsService: RewardsService
-    
-    @State private var summary = DashboardSummary()
-    
+
     var body: some View {
         NavigationView {
             List {
-                Text("Dashboard")
-                Text("Children: \(familyService.children.count)")
-                Text("Pending approvals: \(summary.pendingApprovals)")
+                Text("Dashboard").font(.headline)
+
+                Section {
+                    Text("Children: \(familyService.children.count)")
+                    Text("Pending approvals: \(choreService.pendingApprovals.count)")
+                }
             }
             .navigationTitle("Dashboard")
             .task { await loadDashboardData() }
         }
     }
-    
+
     private func loadDashboardData() async {
-        do {
-            try await familyService.loadFamily()
-            try await choreService.loadChores()
-            try await choreService.loadAssignments()
-            try await choreService.loadCompletions()
-            try await rewardsService.loadRewards()
-            try await rewardsService.loadRedemptions()
-            summary = await choreService.getDashboardSummary()
-        } catch {
-            print("Failed to load dashboard data: \(error)")
-        }
+        // Load family + children
+        await familyService.loadFamily()
+        await familyService.loadChildren()
+
+        // Load chores/assignments/completions + rewards/redemptions
+        await choreService.loadAll()
+        await rewardsService.loadAll()
     }
 }

@@ -2,20 +2,32 @@ import SwiftUI
 
 struct ContentView: View {
     @EnvironmentObject var authService: AuthService
+    @EnvironmentObject var choreService: ChoreService
+    @EnvironmentObject var rewardsService: RewardsService
+    @EnvironmentObject var familyService: FamilyService
 
     var body: some View {
         Group {
             if authService.isAuthenticated {
-                // If you have role on currentUser, route on it; otherwise default to parent UI
                 if let user = authService.currentUser {
                     switch user.role {
                     case .parent:
                         ParentMainView()
+                            .task {
+                                await familyService.loadChildren()
+                                await choreService.loadAll()
+                                await rewardsService.loadAll()
+                            }
                     case .child:
                         ChildMainView(childId: user.id)
+                            .task {
+                                await familyService.loadChildren()
+                                await choreService.loadAll()
+                                await rewardsService.loadAll()
+                            }
                     }
                 } else {
-                    ParentMainView()  // fallback
+                    ProgressView("Loading profile…")
                 }
             } else if authService.pendingVerificationEmail != nil {
                 EmailVerificationView()

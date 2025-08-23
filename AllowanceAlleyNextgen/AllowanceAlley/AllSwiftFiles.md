@@ -1,15 +1,10 @@
 # Swift Sources
 
-_Generated on Sat Aug 23 07:58:33 EDT 2025 from directory: ._
+_Generated on Sat Aug 23 13:49:54 EDT 2025 from directory: ._
 
 ## File: AdditionalViews.swift
 
 ```swift
-//
-//  AdditionalViews.swift
-//  AllowanceAlleyNextgen
-//
-
 import SwiftUI
 
 // MARK: - Reports
@@ -53,25 +48,35 @@ struct ParentSettingsView: View {
     @EnvironmentObject var authService: AuthService
     @EnvironmentObject var notificationsService: NotificationsService
 
+    // Safe strings for display
+    private var emailText: String {
+        // Prefer AppUser.email, fall back to Supabase user’s email
+        authService.currentUser?.email
+        ?? authService.currentSupabaseUser?.email
+        ?? "Unknown"
+    }
+
+    private var familyNameText: String {
+        authService.currentUser?.displayName ?? "Not set"
+    }
+
     var body: some View {
         NavigationView {
             List {
                 Section("Account") {
-                    if let user = authService.currentUser {
-                        HStack {
-                            Text("Email"); Spacer()
-                            Text(user.email).foregroundColor(.secondary)
-                        }
-                        HStack {
-                            Text("Family Name"); Spacer()
-                            Text(user.displayName).foregroundColor(.secondary)
-                        }
+                    HStack {
+                        Text("Email"); Spacer()
+                        Text(emailText).foregroundColor(.secondary)
+                    }
+                    HStack {
+                        Text("Family Name"); Spacer()
+                        Text(familyNameText).foregroundColor(.secondary)
                     }
                 }
 
                 Section("Notifications") {
                     Toggle("Allow Notifications", isOn: $notificationsService.isAuthorized)
-                        .disabled(true) // read-only snapshot of current status
+                        .disabled(true)
 
                     Button("Request Notification Permission") {
                         notificationsService.requestPermissions()
@@ -84,7 +89,6 @@ struct ParentSettingsView: View {
                 }
 
                 Section {
-                    // UPDATED: non-throwing sign out (always clears local state)
                     Button(role: .destructive) {
                         Task { await authService.signOut() }
                     } label: {
@@ -119,7 +123,6 @@ struct ChildSettingsView: View {
                 }
 
                 Section {
-                    // UPDATED: non-throwing sign out
                     Button(role: .destructive) {
                         Task { await authService.signOut() }
                     } label: {
@@ -186,20 +189,11 @@ struct ChildRewardsView: View {
     private func loadData() async {
         isLoading = true
         defer { isLoading = false }
-        do {
-            try await rewardsService.loadRewards()
-            try await rewardsService.loadPointsLedger()
-            try await rewardsService.loadRedemptions()
-        } catch {
-            self.error = error.localizedDescription
-        }
+        await rewardsService.loadAll()
     }
 }
 
-// MARK: - Back-compat wrapper (optional)
-
-/// Keep this so any existing calls to `RewardsView(childId:)` still compile.
-/// Internally it just shows `ChildRewardsView`.
+// Back-compat wrapper
 struct RewardsView: View {
     let childId: String
     var body: some View { ChildRewardsView(childId: childId) }
@@ -230,7 +224,6 @@ struct AllowanceAlleyApp: App {
                 .environmentObject(notificationsService)
                 .environmentObject(imageStore)
                 .onAppear {
-                    // handy during development; safe in production too
                     authService.initialize()
                 }
         }
@@ -408,7 +401,7 @@ final class AuthService: ObservableObject {
         currentSupabaseUser = session.user
         isEmailVerified = (session.user.emailConfirmedAt != nil)
 
-        // TODO: replace with your real profile fetch
+        // Load your profile from DB so familyId is set
         await loadUserProfile(supabaseUser: session.user)
 
         isAuthenticated = true
@@ -432,19 +425,24 @@ final class AuthService: ObservableObject {
         pendingVerificationEmail = nil
     }
 
-    // Minimal placeholder so UI can run before you wire your real fetch.
+    // MARK: - Profile load (real fetch)
     private func loadUserProfile(supabaseUser: User) async {
-        if currentUser == nil {
-            let email = supabaseUser.email ?? ""
-            let display = email.split(separator: "@").first.map(String.init) ?? "User"
-            currentUser = AppUser(
-                id: supabaseUser.id.uuidString,
-                role: .parent,                 // adjust if you store roles elsewhere
-                email: email,
-                displayName: display,
-                familyId: nil,
-                createdAt: Date()
-            )
+        do {
+            if let profile = try await DatabaseAPI.shared.fetchProfile(userId: supabaseUser.id.uuidString) {
+                currentUser = profile
+            } else {
+                // Minimal bootstrap if profiles row doesn't exist yet (optional)
+                currentUser = AppUser(
+                    id: supabaseUser.id.uuidString,
+                    role: .parent,
+                    email: supabaseUser.email ?? "",
+                    displayName: (supabaseUser.email ?? "").split(separator: "@").first.map(String.init) ?? "User",
+                    familyId: nil,
+                    createdAt: Date()
+                )
+            }
+        } catch {
+            print("Profile load failed: \(error)")
         }
     }
 
@@ -539,74 +537,91 @@ import Combine
 @MainActor
 final class ChoreService: ObservableObject {
     static let shared = ChoreService()
-    
-    @Published var chores: [Chore] = []
-    @Published var assignments: [ChoreAssignment] = []
-    @Published var completions: [ChoreCompletion] = []
-    @Published var pendingApprovals: [ChoreCompletion] = []
-    
-    private let authService = AuthService.shared
-    
+
+    @Published private(set) var chores: [Chore] = []
+    @Published private(set) var assignments: [ChoreAssignment] = []
+    @Published private(set) var completions: [ChoreCompletion] = []
+    @Published private(set) var pendingApprovals: [ChoreCompletion] = []
+
+    private let auth = AuthService.shared
+    private let db = DatabaseAPI.shared
     private init() {}
-    
-    func loadChores() async throws {
-        guard let familyId = authService.currentUser?.familyId ?? authService.currentUser?.id else { return }
-        chores = [
-            Chore(familyId: familyId, title: "Make Bed", description: "Make your bed neatly every morning", points: 10, requirePhoto: false, parentUserId: authService.currentUser?.id ?? ""),
-            Chore(familyId: familyId, title: "Take Out Trash", description: "Take the kitchen trash to the curb", points: 20, requirePhoto: true, parentUserId: authService.currentUser?.id ?? "")
-        ]
+
+    // Load everything needed for the dashboard
+    func loadAll() async {
+        guard let familyId = auth.currentUser?.familyId ?? auth.currentUser?.id else { return }
+        async let a = loadChores(familyId: familyId)
+        async let b = loadAssignments(familyId: familyId)
+        async let c = loadCompletions(familyId: familyId)
+        _ = await (a, b, c)
     }
-    
-    func loadAssignments() async throws { assignments = [] }
-    func loadCompletions() async throws {
-        completions = []
-        pendingApprovals = completions.filter { $0.status == .pending }
+
+    func loadChores(familyId: String) async {
+        do { chores = try await db.fetchChores(familyId: familyId) } catch { print(error) }
     }
-    
+
+    func loadAssignments(familyId: String) async {
+        do { assignments = try await db.fetchAssignments(familyId: familyId) } catch { print(error) }
+    }
+
+    func loadCompletions(familyId: String) async {
+        do {
+            completions = try await db.fetchCompletions(familyId: familyId)
+            pendingApprovals = completions.filter { $0.status == .pending }
+        } catch { print(error) }
+    }
+
+    // Create a chore and optional assignments
     func createChore(_ chore: Chore, assignedTo childIds: [String]) async throws {
-        chores.append(chore)
-        for childId in childIds {
-            let assignment = ChoreAssignment(choreId: chore.id, memberId: childId, dueDate: Date().adding(days: 1))
-            assignments.append(assignment)
+        let created = try await db.createChore(chore)
+        chores.append(created)
+
+        for id in childIds {
+            let a = try await db.assignChore(choreId: created.id, memberId: id, due: Date().addingTimeInterval(24*3600))
+            assignments.append(a)
         }
     }
-    
-    func completeChore(_ assignmentId: String, photoURL: String? = nil) async throws {
-        let completion = ChoreCompletion(assignmentId: assignmentId, submittedBy: authService.currentUser?.id, photoURL: photoURL, status: .pending, completedAt: Date())
-        completions.append(completion)
-        pendingApprovals.append(completion)
+
+    // Child marks complete (optionally with photo URL you’ve stored in Storage)
+    func completeChore(assignmentId: String, photoURL: String? = nil) async throws {
+        let completion = ChoreCompletion(
+            assignmentId: assignmentId,
+            submittedBy: auth.currentUser?.id,
+            photoURL: photoURL,
+            status: .pending,
+            completedAt: Date()
+        )
+        let saved = try await db.submitCompletion(completion)
+        completions.insert(saved, at: 0)
+        pendingApprovals.insert(saved, at: 0)
     }
-    
+
+    // Parent approves / rejects
     func approveCompletion(_ completion: ChoreCompletion) async throws {
-        var updated = completion
-        updated.status = .approved
-        updated.reviewedBy = authService.currentUser?.id
-        updated.reviewedAt = Date()
-        if let index = completions.firstIndex(where: { $0.id == completion.id }) { completions[index] = updated }
-        pendingApprovals.removeAll { $0.id == completion.id }
+        guard let reviewer = auth.currentUser?.id else { return }
+        let updated = try await db.reviewCompletion(id: completion.id, status: "approved", reviewedBy: reviewer)
+        replaceCompletion(updated)
     }
-    
+
     func rejectCompletion(_ completion: ChoreCompletion) async throws {
-        var updated = completion
-        updated.status = .rejected
-        updated.reviewedBy = authService.currentUser?.id
-        updated.reviewedAt = Date()
-        if let index = completions.firstIndex(where: { $0.id == completion.id }) { completions[index] = updated }
-        pendingApprovals.removeAll { $0.id == completion.id }
+        guard let reviewer = auth.currentUser?.id else { return }
+        let updated = try await db.reviewCompletion(id: completion.id, status: "rejected", reviewedBy: reviewer)
+        replaceCompletion(updated)
     }
-    
-    func getTodayAssignments(for childId: String) -> [ChoreAssignment] {
-        assignments.filter { $0.memberId == childId && ($0.dueDate?.isToday ?? false) }
+
+    private func replaceCompletion(_ updated: ChoreCompletion) {
+        if let i = completions.firstIndex(where: { $0.id == updated.id }) { completions[i] = updated }
+        pendingApprovals.removeAll { $0.id == updated.id || updated.status != .pending }
+        if updated.status == .pending { pendingApprovals.append(updated) }
     }
-    
-    func getDashboardSummary() async -> DashboardSummary {
-        var summary = DashboardSummary()
-        summary.todayAssigned = assignments.filter { $0.dueDate?.isToday ?? false }.count
-        summary.todayCompleted = completions.filter { $0.completedAt?.isToday ?? false }.count
-        summary.thisWeekAssigned = assignments.filter { $0.dueDate?.isThisWeek ?? false }.count
-        summary.thisWeekCompleted = completions.filter { $0.completedAt?.isThisWeek ?? false }.count
-        summary.pendingApprovals = pendingApprovals.count
-        return summary
+
+    // Utility used by ChildChoresView in some builds
+    func getTodayAssignments(for memberId: String) -> [ChoreAssignment] {
+        let cal = Calendar.current
+        return assignments.filter { a in
+            guard let due = a.dueDate else { return false }
+            return cal.isDateInToday(due) && a.memberId == memberId
+        }
     }
 }
 ```
@@ -618,20 +633,32 @@ import SwiftUI
 
 struct ContentView: View {
     @EnvironmentObject var authService: AuthService
+    @EnvironmentObject var choreService: ChoreService
+    @EnvironmentObject var rewardsService: RewardsService
+    @EnvironmentObject var familyService: FamilyService
 
     var body: some View {
         Group {
             if authService.isAuthenticated {
-                // If you have role on currentUser, route on it; otherwise default to parent UI
                 if let user = authService.currentUser {
                     switch user.role {
                     case .parent:
                         ParentMainView()
+                            .task {
+                                await familyService.loadChildren()
+                                await choreService.loadAll()
+                                await rewardsService.loadAll()
+                            }
                     case .child:
                         ChildMainView(childId: user.id)
+                            .task {
+                                await familyService.loadChildren()
+                                await choreService.loadAll()
+                                await rewardsService.loadAll()
+                            }
                     }
                 } else {
-                    ParentMainView()  // fallback
+                    ProgressView("Loading profile…")
                 }
             } else if authService.pendingVerificationEmail != nil {
                 EmailVerificationView()
@@ -687,33 +714,30 @@ struct DashboardView: View {
     @EnvironmentObject var familyService: FamilyService
     @EnvironmentObject var choreService: ChoreService
     @EnvironmentObject var rewardsService: RewardsService
-    
-    @State private var summary = DashboardSummary()
-    
+
     var body: some View {
         NavigationView {
             List {
-                Text("Dashboard")
-                Text("Children: \(familyService.children.count)")
-                Text("Pending approvals: \(summary.pendingApprovals)")
+                Text("Dashboard").font(.headline)
+
+                Section {
+                    Text("Children: \(familyService.children.count)")
+                    Text("Pending approvals: \(choreService.pendingApprovals.count)")
+                }
             }
             .navigationTitle("Dashboard")
             .task { await loadDashboardData() }
         }
     }
-    
+
     private func loadDashboardData() async {
-        do {
-            try await familyService.loadFamily()
-            try await choreService.loadChores()
-            try await choreService.loadAssignments()
-            try await choreService.loadCompletions()
-            try await rewardsService.loadRewards()
-            try await rewardsService.loadRedemptions()
-            summary = await choreService.getDashboardSummary()
-        } catch {
-            print("Failed to load dashboard data: \(error)")
-        }
+        // Load family + children
+        await familyService.loadFamily()
+        await familyService.loadChildren()
+
+        // Load chores/assignments/completions + rewards/redemptions
+        await choreService.loadAll()
+        await rewardsService.loadAll()
     }
 }
 ```
@@ -724,87 +748,296 @@ struct DashboardView: View {
 import Foundation
 import Supabase
 
-final class DatabaseAPI {
+struct DatabaseAPI {
     static let shared = DatabaseAPI()
     private let client = AppSupabase.shared.client
     private init() {}
-    
-    // Families
-    func createFamily(_ family: Family) async throws -> Family {
-        let inserted: [Family] = try await client
+
+    // MARK: - Families / Children
+
+    func createFamily(name: String) async throws -> Family {
+        try await client
             .from("families")
-            .insert([
-                "id": family.id,
-                "owner_id": family.ownerId,
-                "name": family.name,
-                "created_at": family.createdAt.ISO8601String()
-            ], returning: .representation)
+            .insert(["name": name], returning: .representation)
             .select()
+            .single()
             .execute()
             .value
-        
-        guard let first = inserted.first else {
-            throw DatabaseError.insertFailed
-        }
-        return first
     }
-    
-    func fetchFamily(id: String) async throws -> Family? {
+
+    func fetchFamily(for userId: String) async throws -> Family? {
         let rows: [Family] = try await client
             .from("families")
             .select()
-            .eq("id", value: id)
+            .eq("owner_user_id", value: userId)
+            .limit(1)
             .execute()
             .value
         return rows.first
     }
-    
-    // Children
-    func createChild(_ child: Child) async throws -> Child {
-        let rows: [Child] = try await client
+
+    func createChild(familyId: String, displayName: String) async throws -> Child {
+        try await client
             .from("children")
             .insert([
-                "id": child.id,
-                "parent_user_id": child.parentUserId,
-                "name": child.name,
-                "birthdate": child.birthdate?.ISO8601String(),
-                "avatar_url": child.avatarURL,
-                "created_at": child.createdAt.ISO8601String()
+                "family_id": familyId,
+                "display_name": displayName
             ], returning: .representation)
             .select()
+            .single()
             .execute()
             .value
-        
-        guard let first = rows.first else {
-            throw DatabaseError.insertFailed
-        }
-        return first
     }
-    
-    func fetchChildren(parentUserId: String) async throws -> [Child] {
+
+    func fetchChildren(familyId: String) async throws -> [Child] {
         try await client
             .from("children")
             .select()
-            .eq("parent_user_id", value: parentUserId)
+            .eq("family_id", value: familyId)
+            .order("created_at", ascending: true)
             .execute()
             .value
     }
-}
 
-enum DatabaseError: LocalizedError {
-    case insertFailed
-    case notFound
-    case invalidData
-    
-    var errorDescription: String? {
-        switch self {
-        case .insertFailed:
-            return "Failed to insert data"
-        case .notFound:
-            return "Data not found"
-        case .invalidData:
-            return "Invalid data format"
-        }
+    func updateChild(_ child: Child) async throws -> Child {
+        try await client
+            .from("children")
+            .update(child, returning: .representation)
+            .eq("id", value: child.id)
+            .select()
+            .single()
+            .execute()
+            .value
+    }
+
+    func deleteChild(id: String) async throws {
+        _ = try await client
+            .from("children")
+            .delete()
+            .eq("id", value: id)
+            .execute()
+    }
+
+    // MARK: - Profiles
+
+    func fetchProfile(userId: String) async throws -> AppUser? {
+        let rows: [AppUser] = try await client
+            .from("profiles")
+            .select()
+            .eq("id", value: userId)
+            .limit(1)
+            .execute()
+            .value
+        return rows.first
+    }
+
+    // MARK: - Chores
+
+    func fetchChores(familyId: String) async throws -> [Chore] {
+        try await client
+            .from("chores")
+            .select()
+            .eq("family_id", value: familyId)
+            .order("created_at", ascending: true)
+            .execute()
+            .value
+    }
+
+    func createChore(_ chore: Chore) async throws -> Chore {
+        try await client
+            .from("chores")
+            .insert(chore, returning: .representation)
+            .select()
+            .single()
+            .execute()
+            .value
+    }
+
+    func updateChore(_ chore: Chore) async throws -> Chore {
+        try await client
+            .from("chores")
+            .update(chore, returning: .representation)
+            .eq("id", value: chore.id)
+            .select()
+            .single()
+            .execute()
+            .value
+    }
+
+    func deleteChore(id: String) async throws {
+        _ = try await client
+            .from("chores")
+            .delete()
+            .eq("id", value: id)
+            .execute()
+    }
+
+    // MARK: - Assignments
+
+    func assignChore(choreId: String, memberId: String, due: Date) async throws -> ChoreAssignment {
+        try await client
+            .from("chore_assignments")
+            .insert([
+                "chore_id": choreId,
+                "member_id": memberId,
+                "due_date": ISO8601DateFormatter().string(from: due)
+            ], returning: .representation)
+            .select()
+            .single()
+            .execute()
+            .value
+    }
+
+    func fetchAssignments(familyId: String) async throws -> [ChoreAssignment] {
+        try await client
+            .from("chore_assignments")
+            .select()
+            .eq("family_id", value: familyId)
+            .execute()
+            .value
+    }
+
+    // MARK: - Completions
+
+    func submitCompletion(_ completion: ChoreCompletion) async throws -> ChoreCompletion {
+        try await client
+            .from("chore_completions")
+            .insert(completion, returning: .representation)
+            .select()
+            .single()
+            .execute()
+            .value
+    }
+
+    func reviewCompletion(id: String, status: String, reviewedBy: String) async throws -> ChoreCompletion {
+        try await client
+            .from("chore_completions")
+            .update([
+                "status": status,
+                "reviewed_by": reviewedBy,
+                "reviewed_at": ISO8601DateFormatter().string(from: Date())
+            ], returning: .representation)
+            .eq("id", value: id)
+            .select()
+            .single()
+            .execute()
+            .value
+    }
+
+    func fetchCompletions(familyId: String) async throws -> [ChoreCompletion] {
+        try await client
+            .from("chore_completions")
+            .select()
+            .eq("family_id", value: familyId)
+            .order("completed_at", ascending: false)
+            .execute()
+            .value
+    }
+
+    // MARK: - Rewards
+
+    func fetchRewards(familyId: String) async throws -> [Reward] {
+        try await client
+            .from("rewards")
+            .select()
+            .eq("family_id", value: familyId)
+            .order("created_at", ascending: true)
+            .execute()
+            .value
+    }
+
+    func createReward(_ reward: Reward) async throws -> Reward {
+        try await client
+            .from("rewards")
+            .insert(reward, returning: .representation)
+            .select()
+            .single()
+            .execute()
+            .value
+    }
+
+    func updateReward(_ reward: Reward) async throws -> Reward {
+        try await client
+            .from("rewards")
+            .update(reward, returning: .representation)
+            .eq("id", value: reward.id)
+            .select()
+            .single()
+            .execute()
+            .value
+    }
+
+    func deleteReward(id: String) async throws {
+        _ = try await client
+            .from("rewards")
+            .delete()
+            .eq("id", value: id)
+            .execute()
+    }
+
+    // MARK: - Redemptions
+
+    func requestRedemption(rewardId: String, memberId: String) async throws -> RewardRedemption {
+        try await client
+            .from("reward_redemptions")
+            .insert([
+                "reward_id": rewardId,
+                "member_id": memberId,
+                "status": "requested",
+                "requested_at": ISO8601DateFormatter().string(from: Date())
+            ], returning: .representation)
+            .select()
+            .single()
+            .execute()
+            .value
+    }
+
+    func setRedemptionStatus(id: String, status: String, decidedBy: String) async throws -> RewardRedemption {
+        try await client
+            .from("reward_redemptions")
+            .update([
+                "status": status,
+                "decided_by": decidedBy,
+                "decided_at": ISO8601DateFormatter().string(from: Date())
+            ], returning: .representation)
+            .eq("id", value: id)
+            .select()
+            .single()
+            .execute()
+            .value
+    }
+
+    func fetchRedemptions(familyId: String) async throws -> [RewardRedemption] {
+        try await client
+            .from("reward_redemptions")
+            .select()
+            .eq("family_id", value: familyId)
+            .order("requested_at", ascending: false)
+            .execute()
+            .value
+    }
+
+    // MARK: - Points ledger
+
+    func addLedgerEntry(_ entry: PointsLedger) async throws -> PointsLedger {
+        try await client
+            .from("points_ledger")
+            .insert(entry, returning: .representation)
+            .select()
+            .single()
+            .execute()
+            .value
+    }
+
+    func fetchLedger(familyId: String, memberId: String) async throws -> [PointsLedger] {
+        try await client
+            .from("points_ledger")
+            .select()
+            .eq("family_id", value: familyId)
+            .eq("member_id", value: memberId)
+            .order("created_at", ascending: false)
+            .execute()
+            .value
     }
 }
 ```
@@ -902,52 +1135,38 @@ import Combine
 @MainActor
 final class FamilyService: ObservableObject {
     static let shared = FamilyService()
-    
-    @Published var currentFamily: Family?
-    @Published var children: [Child] = []
-    @Published var familyMembers: [FamilyMember] = []
-    
-    private let authService = AuthService.shared
-    
+
+    @Published private(set) var family: Family?
+    @Published private(set) var children: [Child] = []
+
+    private let auth = AuthService.shared
+    private let db = DatabaseAPI.shared
     private init() {}
-    
-    func loadFamily() async throws {
-        guard let userId = authService.currentUser?.id else { return }
-        if let family = try await DatabaseAPI.shared.fetchFamily(id: userId) {
-            currentFamily = family
-        }
-        children = try await DatabaseAPI.shared.fetchChildren(parentUserId: userId)
+
+    func loadFamily() async {
+        guard let userId = auth.currentUser?.id else { return }
+        do { family = try await db.fetchFamily(for: userId) } catch { print(error) }
     }
-    
-    func createChild(name: String, birthdate: Date?, pin: String) async throws {
-        guard let userId = authService.currentUser?.id else { throw FamilyError.notAuthenticated }
-        let child = Child(parentUserId: userId, name: name, birthdate: birthdate)
-        let created = try await DatabaseAPI.shared.createChild(child)
+
+    func loadChildren() async {
+        guard let familyId = auth.currentUser?.familyId ?? auth.currentUser?.id else { return }
+        do { children = try await db.fetchChildren(familyId: familyId) } catch { print(error) }
+    }
+
+    func createChild(name: String, birthdate: Date? = nil, pin: String? = nil) async throws {
+        guard let familyId = auth.currentUser?.familyId ?? auth.currentUser?.id else { return }
+        let created = try await db.createChild(familyId: familyId, displayName: name)
         children.append(created)
     }
-    
-    func updateChild(_ child: Child) async throws {
-        if let index = children.firstIndex(where: { $0.id == child.id }) {
-            children[index] = child
-        }
-    }
-    
-    func deleteChild(_ child: Child) async throws {
-        children.removeAll { $0.id == child.id }
-    }
-}
 
-enum FamilyError: LocalizedError {
-    case notAuthenticated
-    case familyNotFound
-    
-    var errorDescription: String? {
-        switch self {
-        case .notAuthenticated:
-            return "Not authenticated"
-        case .familyNotFound:
-            return "Family not found"
-        }
+    func updateChild(_ child: Child) async throws {
+        let updated = try await db.updateChild(child)
+        if let i = children.firstIndex(where: { $0.id == updated.id }) { children[i] = updated }
+    }
+
+    func deleteChild(_ child: Child) async throws {
+        try await db.deleteChild(id: child.id)
+        children.removeAll { $0.id == child.id }
     }
 }
 ```
@@ -1565,13 +1784,6 @@ struct NotificationSettings {
 ## File: ParentDashboardView.swift
 
 ```swift
-//
-//  ParentDashboardView.swift
-//  AllowanceAlleyNextgen
-//
-//  Created by Paul Marshall on 8/22/25.
-//
-
 import SwiftUI
 
 struct ParentDashboardView: View {
@@ -1580,7 +1792,6 @@ struct ParentDashboardView: View {
     @EnvironmentObject var choreService: ChoreService
     @EnvironmentObject var rewardsService: RewardsService
 
-    @State private var summary = DashboardSummary()
     @State private var isLoading = false
     @State private var showingAddChild = false
     @State private var showingAddChore = false
@@ -1596,20 +1807,20 @@ struct ParentDashboardView: View {
                     } else {
                         // Welcome Header
                         welcomeHeader
-                        
+
                         // Quick Stats Cards
                         quickStatsSection
-                        
+
                         // Pending Approvals Alert
-                        if summary.pendingApprovals > 0 {
+                        if pendingApprovals > 0 {
                             pendingApprovalsCard
                         }
-                        
+
                         // Children Summary
                         if !familyService.children.isEmpty {
                             childrenSection
                         }
-                        
+
                         // Quick Actions
                         quickActionsSection
                     }
@@ -1617,108 +1828,111 @@ struct ParentDashboardView: View {
                 .padding()
             }
             .navigationTitle("Dashboard")
-            .refreshable {
-                await loadDashboardData()
-            }
-            .task {
-                await loadDashboardData()
-            }
-            .sheet(isPresented: $showingAddChild) {
-                AddChildView()
-            }
-            .sheet(isPresented: $showingAddChore) {
-                AddChoreView()
-            }
-            .sheet(isPresented: $showingAddReward) {
-                AddRewardView()
-            }
+            .refreshable { await loadDashboardData() }
+            .task { await loadDashboardData() }
+            .sheet(isPresented: $showingAddChild) { AddChildView() }
+            .sheet(isPresented: $showingAddChore) { AddChoreView() }
+            .sheet(isPresented: $showingAddReward) { AddRewardView() }
         }
     }
-    
+
+    // MARK: - Derived metrics
+
+    private var pendingApprovals: Int { choreService.pendingApprovals.count }
+
+    private var todayAssigned: Int {
+        let cal = Calendar.current
+        return choreService.assignments.filter { a in
+            guard let due = a.dueDate else { return false }        // <-- unwrap Date?
+            return cal.isDateInToday(due)
+        }.count
+    }
+
+    private var todayCompleted: Int {
+        let cal = Calendar.current
+        return choreService.completions.filter { c in
+            guard let when = c.completedAt else { return false }   // <-- unwrap Date?
+            return cal.isDateInToday(when) && (c.status == .approved || c.status == .pending)
+        }.count
+    }
+
+    private var weekAssigned: Int {
+        let cal = Calendar.current
+        let now = Date()
+        return choreService.assignments.filter { a in
+            guard let d = a.dueDate else { return false }          // <-- unwrap Date?
+            return cal.component(.weekOfYear, from: d) == cal.component(.weekOfYear, from: now) &&
+                   cal.component(.yearForWeekOfYear, from: d) == cal.component(.yearForWeekOfYear, from: now)
+        }.count
+    }
+
+    private var weekCompleted: Int {
+        let cal = Calendar.current
+        let now = Date()
+        return choreService.completions.filter { c in
+            guard let d = c.completedAt else { return false }      // <-- unwrap Date?
+            return cal.component(.weekOfYear, from: d) == cal.component(.weekOfYear, from: now) &&
+                   cal.component(.yearForWeekOfYear, from: d) == cal.component(.yearForWeekOfYear, from: now) &&
+                   (c.status == .approved || c.status == .pending)
+        }.count
+    }
+
+    // MARK: - Sections
+
     private var welcomeHeader: some View {
         VStack(spacing: 8) {
             HStack {
                 VStack(alignment: .leading, spacing: 4) {
                     Text("Welcome back!")
-                        .font(.title2)
-                        .fontWeight(.semibold)
-                    
-                    if let familyName = familyService.currentFamily?.name {
-                        Text("\(familyName) Family")
-                            .font(.subheadline)
-                            .foregroundColor(.secondary)
-                    }
+                        .font(.title2).fontWeight(.semibold)
+
+                    let famName = familyService.family?.name
+                        ?? authService.currentUser?.displayName
+                        ?? "Family"
+                    Text("\(famName) Family")
+                        .font(.subheadline)
+                        .foregroundColor(.secondary)
                 }
-                
+
                 Spacer()
-                
+
                 Circle()
                     .fill(Color.blue.gradient)
                     .frame(width: 50, height: 50)
-                    .overlay(
-                        Image(systemName: "person.fill")
-                            .foregroundColor(.white)
-                    )
+                    .overlay(Image(systemName: "person.fill").foregroundColor(.white))
             }
             .padding()
             .background(Color.blue.opacity(0.1))
             .cornerRadius(16)
         }
     }
-    
+
     private var quickStatsSection: some View {
         VStack(spacing: 12) {
-            HStack {
-                Text("Today's Progress")
-                    .font(.headline)
-                Spacer()
-            }
-            
+            HStack { Text("Today's Progress").font(.headline); Spacer() }
             HStack(spacing: 16) {
-                StatCard(
-                    title: "Today",
-                    completed: summary.todayCompleted,
-                    total: summary.todayAssigned,
-                    color: .blue
-                )
-                
-                StatCard(
-                    title: "This Week",
-                    completed: summary.thisWeekCompleted,
-                    total: summary.thisWeekAssigned,
-                    color: .green
-                )
+                StatCard(title: "Today",     completed: todayCompleted, total: todayAssigned, color: .blue)
+                StatCard(title: "This Week", completed: weekCompleted,  total: weekAssigned,  color: .green)
             }
         }
     }
-    
+
     private var pendingApprovalsCard: some View {
         NavigationLink(destination: ApprovalsView()) {
             HStack {
                 VStack(alignment: .leading, spacing: 8) {
                     HStack {
-                        Image(systemName: "exclamationmark.circle.fill")
-                            .foregroundColor(.orange)
-                        Text("Pending Approvals")
-                            .font(.headline)
+                        Image(systemName: "exclamationmark.circle.fill").foregroundColor(.orange)
+                        Text("Pending Approvals").font(.headline)
                     }
-                    
                     Text("Tap to review and approve completed chores")
-                        .font(.caption)
-                        .foregroundColor(.secondary)
+                        .font(.caption).foregroundColor(.secondary)
                 }
-                
                 Spacer()
-                
                 VStack {
-                    Text("\(summary.pendingApprovals)")
-                        .font(.title)
-                        .fontWeight(.bold)
-                        .foregroundColor(.orange)
-                    
-                    Image(systemName: "chevron.right")
-                        .font(.caption)
-                        .foregroundColor(.secondary)
+                    Text("\(pendingApprovals)")
+                        .font(.title).fontWeight(.bold).foregroundColor(.orange)
+                    Image(systemName: "chevron.right").font(.caption).foregroundColor(.secondary)
                 }
             }
             .padding()
@@ -1727,86 +1941,52 @@ struct ParentDashboardView: View {
         }
         .buttonStyle(PlainButtonStyle())
     }
-    
+
     private var childrenSection: some View {
         VStack(alignment: .leading, spacing: 12) {
             HStack {
-                Text("Children")
-                    .font(.headline)
-                Spacer()
+                Text("Children").font(.headline); Spacer()
                 Text("\(familyService.children.count)")
                     .font(.caption)
-                    .padding(.horizontal, 8)
-                    .padding(.vertical, 4)
+                    .padding(.horizontal, 8).padding(.vertical, 4)
                     .background(Color.blue.opacity(0.2))
                     .cornerRadius(8)
             }
-            
             ForEach(familyService.children) { child in
                 ChildSummaryCard(child: child)
             }
         }
     }
-    
+
     private var quickActionsSection: some View {
         VStack(alignment: .leading, spacing: 12) {
-            Text("Quick Actions")
-                .font(.headline)
-            
-            LazyVGrid(columns: [
-                GridItem(.flexible()),
-                GridItem(.flexible())
-            ], spacing: 12) {
-                QuickActionButton(
-                    icon: "list.bullet.clipboard",
-                    title: "Add Chore",
-                    color: .blue
-                ) {
+            Text("Quick Actions").font(.headline)
+            LazyVGrid(columns: [GridItem(.flexible()), GridItem(.flexible())], spacing: 12) {
+                QuickActionButton(icon: "list.bullet.clipboard", title: "Add Chore", color: .blue) {
                     showingAddChore = true
                 }
-                
-                QuickActionButton(
-                    icon: "gift.fill",
-                    title: "Add Reward",
-                    color: .purple
-                ) {
+                QuickActionButton(icon: "gift.fill", title: "Add Reward", color: .purple) {
                     showingAddReward = true
                 }
-                
-                QuickActionButton(
-                    icon: "person.badge.plus",
-                    title: "Add Child",
-                    color: .green
-                ) {
+                QuickActionButton(icon: "person.badge.plus", title: "Add Child", color: .green) {
                     showingAddChild = true
                 }
-                
-                QuickActionButton(
-                    icon: "chart.bar.fill",
-                    title: "View Reports",
-                    color: .orange
-                ) {
-                    // TODO: Navigate to reports
+                QuickActionButton(icon: "chart.bar.fill", title: "View Reports", color: .orange) {
+                    // TODO: navigate to reports
                 }
             }
         }
     }
 
+    // MARK: - Loading
+
     private func loadDashboardData() async {
         isLoading = true
         defer { isLoading = false }
-
-        do {
-            try await familyService.loadFamily()
-            try await choreService.loadChores()
-            try await choreService.loadAssignments()
-            try await choreService.loadCompletions()
-            try await rewardsService.loadRewards()
-            try await rewardsService.loadRedemptions()
-            summary = await choreService.getDashboardSummary()
-        } catch {
-            print("Failed to load dashboard data: \(error)")
-        }
+        await familyService.loadFamily()
+        await familyService.loadChildren()
+        await choreService.loadAll()
+        await rewardsService.loadAll()
     }
 }
 ```
@@ -1871,10 +2051,9 @@ struct AddChildView: View {
     private func save() async {
         isSaving = true; defer { isSaving = false }
         do {
-            let bd: Date? = hasBirthdate ? birthdateValue : nil
             try await familyService.createChild(name: name.trimmingCharacters(in: .whitespaces),
-                                               birthdate: bd,
-                                               pin: pin)
+                                               birthdate: hasBirthdate ? birthdateValue : nil,
+                                               pin: pin.isEmpty ? nil : pin)
             dismiss()
         } catch {
             self.error = error.localizedDescription
@@ -1895,7 +2074,7 @@ struct AddChoreView: View {
     @State private var points = 10
     @State private var requirePhoto = false
 
-    // Simpler selection model to help the type checker
+    // Simpler selection model
     @State private var selected: [String: Bool] = [:]
 
     @State private var error: String?
@@ -1942,7 +2121,6 @@ struct AddChoreView: View {
                 }
             }
             .onAppear {
-                // initialize selection map once to keep ForEach simple
                 if selected.isEmpty {
                     var map: [String: Bool] = [:]
                     for c in familyService.children { map[c.id] = false }
@@ -1959,12 +2137,14 @@ struct AddChoreView: View {
         isSaving = true; defer { isSaving = false }
 
         let chore = Chore(
+            id: UUID().uuidString,
             familyId: familyId,
             title: title.trimmingCharacters(in: .whitespaces),
             description: description.isEmpty ? nil : description,
             points: points,
             requirePhoto: requirePhoto,
-            parentUserId: parentId
+            parentUserId: parentId,
+            createdAt: Date()
         )
 
         do {
@@ -2015,11 +2195,14 @@ struct AddRewardView: View {
         guard let familyId = authService.currentUser?.familyId ?? authService.currentUser?.id else { return }
         isSaving = true; defer { isSaving = false }
         do {
-            try await rewardsService.createReward(
-                Reward(familyId: familyId,
-                       name: name.trimmingCharacters(in: .whitespaces),
-                       costPoints: cost)
+            let reward = Reward(
+                id: UUID().uuidString,
+                familyId: familyId,
+                name: name.trimmingCharacters(in: .whitespaces),
+                costPoints: cost,
+                createdAt: Date()
             )
+            try await rewardsService.createReward(reward)
             dismiss()
         } catch {
             self.error = error.localizedDescription
@@ -2094,86 +2277,79 @@ import Combine
 @MainActor
 final class RewardsService: ObservableObject {
     static let shared = RewardsService()
-    
-    @Published var rewards: [Reward] = []
-    @Published var redemptions: [RewardRedemption] = []
-    @Published var pointsLedger: [PointsLedger] = []
-    
-    private let authService = AuthService.shared
-    
-    private init() {}
-    
-    func loadRewards() async throws {
-        guard let familyId = authService.currentUser?.familyId ?? authService.currentUser?.id else { return }
-        rewards = [
-            Reward(familyId: familyId, name: "Extra Screen Time", costPoints: 50),
-            Reward(familyId: familyId, name: "Choose Dinner", costPoints: 100),
-            Reward(familyId: familyId, name: "Stay Up Late", costPoints: 150)
-        ]
-    }
-    
-    func loadRedemptions() async throws { redemptions = [] }
-    func loadPointsLedger() async throws { pointsLedger = [] }
-    
-    func createReward(_ reward: Reward) async throws { rewards.append(reward) }
-    func updateReward(_ reward: Reward) async throws { if let i = rewards.firstIndex(where: { $0.id == reward.id }) { rewards[i] = reward } }
-    func deleteReward(_ reward: Reward) async throws { rewards.removeAll { $0.id == reward.id } }
-    
-    func requestRedemption(rewardId: String, memberId: String) async throws {
-        guard let reward = rewards.first(where: { $0.id == rewardId }) else { return }
-        let balance = await getPointsBalance(for: memberId)
-        guard balance >= reward.costPoints else { throw RewardsError.insufficientPoints }
-        let redemption = RewardRedemption(rewardId: rewardId, memberId: memberId, status: .requested, requestedAt: Date())
-        redemptions.append(redemption)
-    }
-    
-    func approveRedemption(_ redemption: RewardRedemption) async throws {
-        guard let reward = rewards.first(where: { $0.id == redemption.rewardId }),
-              let familyId = authService.currentUser?.familyId ?? authService.currentUser?.id else { return }
-        var updated = redemption
-        updated.status = .approved
-        updated.decidedBy = authService.currentUser?.id
-        updated.decidedAt = Date()
-        if let i = redemptions.firstIndex(where: { $0.id == redemption.id }) { redemptions[i] = updated }
-        let entry = PointsLedger(familyId: familyId, memberId: redemption.memberId, delta: -reward.costPoints, reason: "Redeemed: \(reward.name)", event: .rewardRedeemed)
-        pointsLedger.append(entry)
-    }
-    
-    func rejectRedemption(_ redemption: RewardRedemption) async throws {
-        var updated = redemption
-        updated.status = .rejected
-        updated.decidedBy = authService.currentUser?.id
-        updated.decidedAt = Date()
-        if let i = redemptions.firstIndex(where: { $0.id == redemption.id }) { redemptions[i] = updated }
-    }
-    
-    func addPoints(to memberId: String, amount: Int, reason: String, event: PointsEvent) async throws {
-        guard let familyId = authService.currentUser?.familyId ?? authService.currentUser?.id else { return }
-        let entry = PointsLedger(familyId: familyId, memberId: memberId, delta: amount, reason: reason, event: event)
-        pointsLedger.append(entry)
-    }
-    
-    func getPointsBalance(for memberId: String) async -> Int {
-        pointsLedger.filter { $0.memberId == memberId }.reduce(0) { $0 + $1.delta }
-    }
-    
-    func getPointsHistory(for memberId: String) -> [PointsLedger] {
-        pointsLedger.filter { $0.memberId == memberId }.sorted { $0.createdAt > $1.createdAt }
-    }
-    
-    func getPendingRedemptions() -> [RewardRedemption] {
-        redemptions.filter { $0.status == .requested }
-    }
-}
 
-enum RewardsError: LocalizedError {
-    case insufficientPoints
-    case rewardNotFound
-    var errorDescription: String? {
-        switch self {
-        case .insufficientPoints: return "Insufficient points for this reward"
-        case .rewardNotFound: return "Reward not found"
+    @Published private(set) var rewards: [Reward] = []
+    @Published private(set) var redemptions: [RewardRedemption] = []
+    @Published private(set) var pointsLedger: [PointsLedger] = []
+
+    private let auth = AuthService.shared
+    private let db = DatabaseAPI.shared
+    private init() {}
+
+    func loadAll() async {
+        guard let familyId = auth.currentUser?.familyId ?? auth.currentUser?.id else { return }
+        async let a = loadRewards(familyId: familyId)
+        async let b = loadRedemptions(familyId: familyId)
+        _ = await (a, b)
+    }
+
+    func loadRewards(familyId: String) async {
+        do { rewards = try await db.fetchRewards(familyId: familyId) } catch { print(error) }
+    }
+
+    func loadRedemptions(familyId: String) async {
+        do { redemptions = try await db.fetchRedemptions(familyId: familyId) } catch { print(error) }
+    }
+
+    func loadPoints(for memberId: String) async {
+        guard let familyId = auth.currentUser?.familyId ?? auth.currentUser?.id else { return }
+        do { pointsLedger = try await db.fetchLedger(familyId: familyId, memberId: memberId) } catch { print(error) }
+    }
+
+    func createReward(_ reward: Reward) async throws {
+        let created = try await db.createReward(reward)
+        rewards.append(created)
+    }
+
+    func updateReward(_ reward: Reward) async throws {
+        let updated = try await db.updateReward(reward)
+        if let i = rewards.firstIndex(where: { $0.id == updated.id }) { rewards[i] = updated }
+    }
+
+    func deleteReward(_ reward: Reward) async throws {
+        try await db.deleteReward(id: reward.id)
+        rewards.removeAll { $0.id == reward.id }
+    }
+
+    func requestRedemption(rewardId: String, memberId: String) async throws {
+        let r = try await db.requestRedemption(rewardId: rewardId, memberId: memberId)
+        redemptions.insert(r, at: 0)
+    }
+
+    func approveRedemption(_ redemption: RewardRedemption) async throws {
+        guard let decider = auth.currentUser?.id else { return }
+        let updated = try await db.setRedemptionStatus(id: redemption.id, status: "approved", decidedBy: decider)
+        if let i = redemptions.firstIndex(where: { $0.id == updated.id }) { redemptions[i] = updated }
+
+        // optional: write the negative points to the ledger
+        if let reward = rewards.first(where: { $0.id == redemption.rewardId }),
+           let familyId = auth.currentUser?.familyId ?? auth.currentUser?.id {
+            let entry = PointsLedger(
+                familyId: familyId,
+                memberId: redemption.memberId,
+                delta: -reward.costPoints,
+                reason: "Redeemed: \(reward.name)",
+                event: .rewardRedeemed
+            )
+            let saved = try await db.addLedgerEntry(entry)
+            pointsLedger.insert(saved, at: 0)
         }
+    }
+
+    func rejectRedemption(_ redemption: RewardRedemption) async throws {
+        guard let decider = auth.currentUser?.id else { return }
+        let updated = try await db.setRedemptionStatus(id: redemption.id, status: "rejected", decidedBy: decider)
+        if let i = redemptions.firstIndex(where: { $0.id == updated.id }) { redemptions[i] = updated }
     }
 }
 ```
@@ -2181,17 +2357,9 @@ enum RewardsError: LocalizedError {
 ## File: SharedComponents.swift
 
 ```swift
-//
-//  SharedComponents.swift
-//  AllowanceAlleyNextgen
-//
-//  Created by Paul Marshall on 8/22/25.
-//
-
 import SwiftUI
 
-// MARK: - Shared UI Components
-
+// Small card used on the dashboard
 struct StatCard: View {
     let title: String
     let completed: Int
@@ -2199,74 +2367,22 @@ struct StatCard: View {
     let color: Color
 
     var body: some View {
-        VStack(spacing: 8) {
-            Text(title)
-                .font(.caption)
-                .foregroundColor(.secondary)
-
-            Text("\(completed)/\(total)")
-                .font(.title2)
-                .fontWeight(.bold)
-                .foregroundColor(color)
-
-            ProgressView(value: total > 0 ? Double(completed) / Double(total) : 0)
-                .tint(color)
+        VStack(alignment: .leading, spacing: 6) {
+            Text(title).font(.subheadline).foregroundColor(.secondary)
+            HStack(alignment: .firstTextBaseline, spacing: 4) {
+                Text("\(completed)").font(.title2).fontWeight(.bold)
+                Text("/ \(total)").foregroundColor(.secondary)
+            }
+            ProgressView(value: total == 0 ? 0 : Double(completed) / Double(max(total, 1)))
         }
         .padding()
-        .background(Color(UIColor.secondarySystemBackground))
+        .frame(maxWidth: .infinity, minHeight: 84, alignment: .leading)
+        .background(color.opacity(0.12))
         .cornerRadius(12)
     }
 }
 
-struct ChildSummaryCard: View {
-    let child: Child
-    @EnvironmentObject var rewardsService: RewardsService
-    @State private var pointsBalance = 0
-
-    var body: some View {
-        HStack {
-            Circle()
-                .fill(Color.blue.gradient)
-                .frame(width: 40, height: 40)
-                .overlay(
-                    Text(String(child.name.prefix(1)))
-                        .font(.headline)
-                        .foregroundColor(.white)
-                )
-
-            VStack(alignment: .leading, spacing: 4) {
-                Text(child.name)
-                    .font(.headline)
-
-                if let age = child.age {
-                    Text("Age \(age)")
-                        .font(.caption)
-                        .foregroundColor(.secondary)
-                }
-            }
-
-            Spacer()
-
-            VStack(alignment: .trailing, spacing: 4) {
-                Text("\(pointsBalance) points")
-                    .font(.subheadline)
-                    .fontWeight(.semibold)
-                    .foregroundColor(.blue)
-
-                Text("0 completed") // TODO: Get actual completions
-                    .font(.caption)
-                    .foregroundColor(.secondary)
-            }
-        }
-        .padding()
-        .background(Color(UIColor.secondarySystemBackground))
-        .cornerRadius(12)
-        .task {
-            pointsBalance = await rewardsService.getPointsBalance(for: child.id)
-        }
-    }
-}
-
+// Square action button used in the grid
 struct QuickActionButton: View {
     let icon: String
     let title: String
@@ -2275,20 +2391,41 @@ struct QuickActionButton: View {
 
     var body: some View {
         Button(action: action) {
-            VStack(spacing: 8) {
+            VStack(spacing: 10) {
                 Image(systemName: icon)
                     .font(.title2)
-                    .foregroundColor(color)
-
                 Text(title)
-                    .font(.caption)
-                    .foregroundColor(.primary)
+                    .font(.subheadline)
+                    .multilineTextAlignment(.center)
             }
-            .frame(maxWidth: .infinity)
-            .padding()
-            .background(Color(UIColor.secondarySystemBackground))
+            .frame(maxWidth: .infinity, minHeight: 84)
+            .padding(.vertical, 8)
+            .background(color.opacity(0.12))
             .cornerRadius(12)
         }
+        .buttonStyle(.plain)
+    }
+}
+
+// Row showing a child summary (name + placeholder stats)
+struct ChildSummaryCard: View {
+    let child: Child
+
+    var body: some View {
+        HStack(spacing: 12) {
+            Circle().fill(Color.blue.opacity(0.15)).frame(width: 40, height: 40)
+                .overlay(Image(systemName: "person.fill").foregroundColor(.blue))
+            VStack(alignment: .leading, spacing: 4) {
+                Text(child.name) // assumes your Child model exposes `name`
+                    .font(.headline)
+                Text("Tap a quick action to assign chores or rewards")
+                    .font(.caption).foregroundColor(.secondary)
+            }
+            Spacer()
+        }
+        .padding()
+        .background(Color(UIColor.secondarySystemBackground))
+        .cornerRadius(12)
     }
 }
 ```
