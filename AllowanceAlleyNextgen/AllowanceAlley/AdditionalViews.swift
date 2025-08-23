@@ -53,7 +53,7 @@ struct ParentSettingsView: View {
                     if let user = authService.currentUser {
                         HStack {
                             Text("Email"); Spacer()
-                            Text(user.email ?? "Not set").foregroundColor(.secondary)
+                            Text(user.email).foregroundColor(.secondary)
                         }
                         HStack {
                             Text("Family Name"); Spacer()
@@ -64,7 +64,7 @@ struct ParentSettingsView: View {
 
                 Section("Notifications") {
                     Toggle("Allow Notifications", isOn: $notificationsService.isAuthorized)
-                        .disabled(true) // read-only state for now
+                        .disabled(true) // read-only snapshot of current status
 
                     Button("Request Notification Permission") {
                         notificationsService.requestPermissions()
@@ -77,8 +77,9 @@ struct ParentSettingsView: View {
                 }
 
                 Section {
+                    // UPDATED: non-throwing sign out (always clears local state)
                     Button(role: .destructive) {
-                        Task { try? await authService.signOut() }
+                        Task { await authService.signOut() }
                     } label: {
                         Text("Sign Out")
                     }
@@ -111,8 +112,9 @@ struct ChildSettingsView: View {
                 }
 
                 Section {
+                    // UPDATED: non-throwing sign out
                     Button(role: .destructive) {
-                        Task { try? await authService.signOut() }
+                        Task { await authService.signOut() }
                     } label: {
                         Text("Sign Out")
                     }
@@ -123,7 +125,7 @@ struct ChildSettingsView: View {
     }
 }
 
-// MARK: - Child Rewards (NEW)
+// MARK: - Child Rewards
 
 struct ChildRewardsView: View {
     let childId: String
@@ -169,12 +171,8 @@ struct ChildRewardsView: View {
                 }
             }
             .navigationTitle("Rewards")
-            .task {
-                await loadData()
-            }
-            .refreshable {
-                await loadData()
-            }
+            .task { await loadData() }
+            .refreshable { await loadData() }
         }
     }
 

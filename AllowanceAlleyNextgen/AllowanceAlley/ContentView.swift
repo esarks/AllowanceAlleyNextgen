@@ -2,10 +2,11 @@ import SwiftUI
 
 struct ContentView: View {
     @EnvironmentObject var authService: AuthService
-    
+
     var body: some View {
         Group {
             if authService.isAuthenticated {
+                // If you have role on currentUser, route on it; otherwise default to parent UI
                 if let user = authService.currentUser {
                     switch user.role {
                     case .parent:
@@ -14,7 +15,7 @@ struct ContentView: View {
                         ChildMainView(childId: user.id)
                     }
                 } else {
-                    LoadingView(message: "Loading user profile...")
+                    ParentMainView()  // fallback
                 }
             } else if authService.pendingVerificationEmail != nil {
                 EmailVerificationView()
@@ -22,21 +23,5 @@ struct ContentView: View {
                 AuthenticationView()
             }
         }
-    }
-}
-
-struct LoadingView: View {
-    let message: String
-    
-    var body: some View {
-        VStack(spacing: 16) {
-            ProgressView()
-                .scaleEffect(1.5)
-            Text(message)
-                .font(.subheadline)
-                .foregroundColor(.secondary)
-        }
-        .frame(maxWidth: .infinity, maxHeight: .infinity)
-        .background(Color(UIColor.systemBackground))
     }
 }
