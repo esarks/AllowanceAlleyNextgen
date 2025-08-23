@@ -1,6 +1,6 @@
 # Swift Sources
 
-_Generated on Sat Aug 23 06:25:42 EDT 2025 from directory: ._
+_Generated on Sat Aug 23 07:28:05 EDT 2025 from directory: ._
 
 ## File: AdditionalViews.swift
 
@@ -9,16 +9,16 @@ _Generated on Sat Aug 23 06:25:42 EDT 2025 from directory: ._
 //  AdditionalViews.swift
 //  AllowanceAlleyNextgen
 //
-//  Created by Paul Marshall on 8/22/25.
-//
 
 import SwiftUI
+
+// MARK: - Reports
 
 struct ReportsView: View {
     @EnvironmentObject var choreService: ChoreService
     @EnvironmentObject var familyService: FamilyService
     @EnvironmentObject var rewardsService: RewardsService
-    
+
     var body: some View {
         NavigationView {
             ScrollView {
@@ -26,11 +26,9 @@ struct ReportsView: View {
                     Text("Family Reports")
                         .font(.title2)
                         .fontWeight(.semibold)
-                    
+
                     VStack(alignment: .leading, spacing: 12) {
-                        Text("Coming Soon")
-                            .font(.headline)
-                        
+                        Text("Coming Soon").font(.headline)
                         Text("• Weekly progress reports")
                         Text("• Points earned history")
                         Text("• Chore completion trends")
@@ -39,7 +37,7 @@ struct ReportsView: View {
                     .padding()
                     .background(Color(UIColor.secondarySystemBackground))
                     .cornerRadius(12)
-                    
+
                     Spacer()
                 }
                 .padding()
@@ -49,57 +47,48 @@ struct ReportsView: View {
     }
 }
 
+// MARK: - Parent Settings
+
 struct ParentSettingsView: View {
     @EnvironmentObject var authService: AuthService
     @EnvironmentObject var notificationsService: NotificationsService
-    
+
     var body: some View {
         NavigationView {
             List {
                 Section("Account") {
                     if let user = authService.currentUser {
                         HStack {
-                            Text("Email")
-                            Spacer()
-                            Text(user.email ?? "Not set")
-                                .foregroundColor(.secondary)
+                            Text("Email"); Spacer()
+                            Text(user.email ?? "Not set").foregroundColor(.secondary)
                         }
-                        
                         HStack {
-                            Text("Family Name")
-                            Spacer()
-                            Text(user.displayName)
-                                .foregroundColor(.secondary)
+                            Text("Family Name"); Spacer()
+                            Text(user.displayName).foregroundColor(.secondary)
                         }
                     }
                 }
-                
+
                 Section("Notifications") {
                     Toggle("Allow Notifications", isOn: $notificationsService.isAuthorized)
-                        .disabled(true) // Read-only for now
-                    
+                        .disabled(true) // read-only state for now
+
                     Button("Request Notification Permission") {
                         notificationsService.requestPermissions()
                     }
                 }
-                
+
                 Section("Data") {
-                    Button("Export Family Data") {
-                        // TODO: Implement data export
-                    }
-                    
-                    Button("Import Data") {
-                        // TODO: Implement data import
-                    }
+                    Button("Export Family Data") { /* TODO */ }
+                    Button("Import Data") { /* TODO */ }
                 }
-                
+
                 Section {
-                    Button("Sign Out") {
-                        Task {
-                            try? await authService.signOut()
-                        }
+                    Button(role: .destructive) {
+                        Task { try? await authService.signOut() }
+                    } label: {
+                        Text("Sign Out")
                     }
-                    .foregroundColor(.red)
                 }
             }
             .navigationTitle("Settings")
@@ -107,36 +96,33 @@ struct ParentSettingsView: View {
     }
 }
 
+// MARK: - Child Settings
+
 struct ChildSettingsView: View {
     let childId: String
     @EnvironmentObject var authService: AuthService
-    
+
     var body: some View {
         NavigationView {
             List {
                 Section("About Me") {
                     HStack {
-                        Text("Child ID")
-                        Spacer()
-                        Text(childId)
-                            .font(.caption)
-                            .foregroundColor(.secondary)
+                        Text("Child ID"); Spacer()
+                        Text(childId).font(.caption).foregroundColor(.secondary)
                     }
                 }
-                
+
                 Section("Privacy") {
                     Text("Your data is safe with us")
-                        .font(.caption)
-                        .foregroundColor(.secondary)
+                        .font(.caption).foregroundColor(.secondary)
                 }
-                
+
                 Section {
-                    Button("Sign Out") {
-                        Task {
-                            try? await authService.signOut()
-                        }
+                    Button(role: .destructive) {
+                        Task { try? await authService.signOut() }
+                    } label: {
+                        Text("Sign Out")
                     }
-                    .foregroundColor(.red)
                 }
             }
             .navigationTitle("Settings")
@@ -144,13 +130,81 @@ struct ChildSettingsView: View {
     }
 }
 
+// MARK: - Child Rewards (NEW)
+
+struct ChildRewardsView: View {
+    let childId: String
+    @EnvironmentObject var rewardsService: RewardsService
+
+    @State private var isLoading = false
+    @State private var error: String?
+
+    var body: some View {
+        NavigationView {
+            List {
+                if let error {
+                    Text(error).foregroundColor(.red)
+                }
+
+                if rewardsService.rewards.isEmpty && !isLoading {
+                    Text("No rewards yet").foregroundColor(.secondary)
+                }
+
+                ForEach(rewardsService.rewards) { reward in
+                    HStack {
+                        VStack(alignment: .leading, spacing: 4) {
+                            Text(reward.name).font(.headline)
+                            Text("\(reward.costPoints) points")
+                                .font(.caption).foregroundColor(.secondary)
+                        }
+                        Spacer()
+                        Button("Redeem") {
+                            Task {
+                                do {
+                                    try await rewardsService.requestRedemption(
+                                        rewardId: reward.id,
+                                        memberId: childId
+                                    )
+                                } catch {
+                                    self.error = error.localizedDescription
+                                }
+                            }
+                        }
+                        .buttonStyle(.borderedProminent)
+                    }
+                    .padding(.vertical, 4)
+                }
+            }
+            .navigationTitle("Rewards")
+            .task {
+                await loadData()
+            }
+            .refreshable {
+                await loadData()
+            }
+        }
+    }
+
+    private func loadData() async {
+        isLoading = true
+        defer { isLoading = false }
+        do {
+            try await rewardsService.loadRewards()
+            try await rewardsService.loadPointsLedger()
+            try await rewardsService.loadRedemptions()
+        } catch {
+            self.error = error.localizedDescription
+        }
+    }
+}
+
+// MARK: - Back-compat wrapper (optional)
+
+/// Keep this so any existing calls to `RewardsView(childId:)` still compile.
+/// Internally it just shows `ChildRewardsView`.
 struct RewardsView: View {
     let childId: String
-    
-    var body: some View {
-        // Redirect to the proper child rewards view
-        ChildRewardsView(childId: childId)
-    }
+    var body: some View { ChildRewardsView(childId: childId) }
 }
 ```
 
@@ -158,19 +212,14 @@ struct RewardsView: View {
 
 ```swift
 import SwiftUI
-import Combine
 
 @main
 struct AllowanceAlleyApp: App {
+    // Own the singletons here and inject as environment objects
     @StateObject private var authService = AuthService.shared
     @StateObject private var familyService = FamilyService.shared
     @StateObject private var choreService = ChoreService.shared
     @StateObject private var rewardsService = RewardsService.shared
-    @StateObject private var notificationsService = NotificationsService.shared
-    @StateObject private var imageStore = ImageStore.shared
-    
-    private let coreDataStack = CoreDataStack.shared
-    private let supabase = AppSupabase.shared
 
     var body: some Scene {
         WindowGroup {
@@ -179,21 +228,10 @@ struct AllowanceAlleyApp: App {
                 .environmentObject(familyService)
                 .environmentObject(choreService)
                 .environmentObject(rewardsService)
-                .environmentObject(notificationsService)
-                .environmentObject(imageStore)
                 .onAppear {
-                    setupServices()
+                    authService.initialize()
                 }
         }
-    }
-    
-    private func setupServices() {
-        Task {
-            await authService.resetAuthenticationState()
-            authService.initialize()
-        }
-        _ = coreDataStack
-        _ = supabase
     }
 }
 ```
@@ -272,103 +310,97 @@ import Supabase
 final class AuthService: ObservableObject {
     static let shared = AuthService()
 
+    // MARK: - Published state
     @Published var isAuthenticated = false
+    @Published var isEmailVerified = false
     @Published var currentUser: AppUser?
     @Published var currentSupabaseUser: User?
-    @Published var isEmailVerified = false
     @Published var pendingVerificationEmail: String?
-    
+
+    // MARK: - Private
     private let supabase = AppSupabase.shared
     private var authStateListener: Task<Void, Never>?
 
     private init() {}
 
+    // MARK: - Lifecycle
     func initialize() {
         Task {
             await refreshSession()
             startAuthListener()
         }
     }
-    
-    func resetAuthenticationState() async {
-        await signOutLocally()
-    }
-    
-    deinit {
-        authStateListener?.cancel()
+
+    // Convenience to clear local auth state from the UI.
+    func resetAuthenticationState() {
+        Task { await signOutLocally() }
     }
 
-    // MARK: - Email/Password Authentication
-    
-    func signUp(email: String, password: String, familyName: String) async throws {
-        let response = try await supabase.client.auth.signUp(email: email, password: password)
-        let user = response.user
-        pendingVerificationEmail = email
+    // MARK: - Sign Up / Sign In / Sign Out
+
+    /// Standard email/password sign‑up. Supabase emails a 6‑digit OTP.
+    func signUp(email: String, password: String, familyName: String?) async throws {
+        let result = try await supabase.client.auth.signUp(email: email, password: password)
+
+        // In your SDK, result.user is non‑optional.
+        let user = result.user
+        currentSupabaseUser = user
         isEmailVerified = (user.emailConfirmedAt != nil)
-        
+
         if isEmailVerified {
-            try await createUserProfile(user: user, familyName: familyName)
+            try await postLoginBootstrap(familyName: familyName)
         } else {
-            currentSupabaseUser = user
+            pendingVerificationEmail = email
             isAuthenticated = false
         }
     }
-    
+
     func signIn(email: String, password: String) async throws {
-        let response = try await supabase.client.auth.signIn(email: email, password: password)
-        let user = response.user
-        await loadUserProfile(supabaseUser: user)
+        _ = try await supabase.client.auth.signIn(email: email, password: password)
+        await refreshSession()
     }
-    
-    func signInChild(childId: String, pin: String) async throws {
-        guard pin.count == 4, pin.allSatisfy(\.isNumber) else {
-            throw AuthError.invalidPin
-        }
-        let child = AppUser(id: childId, role: .child, displayName: "Child User")
-        currentUser = child
-        currentSupabaseUser = nil
-        isAuthenticated = true
-        isEmailVerified = true
-        pendingVerificationEmail = nil
-    }
-    
+
     func signOut() async throws {
         try await supabase.client.auth.signOut()
         await signOutLocally()
     }
 
-    // MARK: - Email Verification (for EmailVerificationView)
-    
-    var codeExpiresAt: Date? {
-        VerificationStore.expiresAt
-    }
-
-    func beginVerificationCountdown(seconds: Int = 300) {
-        VerificationStore.expiresAt = Date().addingTimeInterval(TimeInterval(seconds))
-    }
+    // MARK: - OTP Verification (REAL Supabase flow)
 
     func resendVerificationCode() async throws {
-        let code = Self.generateCode()
-        VerificationStore.code = code
-        beginVerificationCountdown(seconds: 300)
-        #if DEBUG
-        print("DEV verification code: \(code) (valid until \(VerificationStore.expiresAt!))")
-        #endif
+        guard let email = pendingVerificationEmail else { throw VerificationError.invalid }
+        // Your SDK expects email: before type:
+        try await supabase.client.auth.resend(email: email, type: .signup)
     }
 
     func verifyCode(_ code: String) async throws {
-        guard let exp = VerificationStore.expiresAt, Date() <= exp else {
-            throw VerificationError.expired
-        }
-        guard code == VerificationStore.code else {
-            throw VerificationError.invalid
-        }
-        self.isAuthenticated = true
-        self.pendingVerificationEmail = nil
+        guard let email = pendingVerificationEmail else { throw VerificationError.invalid }
+
+        try await supabase.client.auth.verifyOTP(
+            email: email,
+            token: code,
+            type: .signup
+        )
+
+        // On success, fetch the (throwing) session property
+        let session = try await supabase.client.auth.session
+        await applySession(session)
+        pendingVerificationEmail = nil
+        isAuthenticated = true
+        isEmailVerified = true
+
+        try await postLoginBootstrap(familyName: nil)
     }
 
-    // MARK: - Private Methods
-    
+    // MARK: - Private
+
+    private func postLoginBootstrap(familyName: String?) async throws {
+        // Any first‑login bootstrap (e.g., ensure family) would go here.
+        let session = try await supabase.client.auth.session
+        await applySession(session)
+        // Example later: try await FamilyService.shared.ensureFamilyExists(named: familyName)
+    }
+
     private func refreshSession() async {
         do {
             let session = try await supabase.client.auth.session
@@ -377,23 +409,25 @@ final class AuthService: ObservableObject {
             await signOutLocally()
         }
     }
-    
+
     private func applySession(_ session: Session) async {
+        currentSupabaseUser = session.user
+        isEmailVerified = (session.user.emailConfirmedAt != nil)
         await loadUserProfile(supabaseUser: session.user)
+        isAuthenticated = true
     }
-    
+
     private func startAuthListener() {
         authStateListener?.cancel()
         authStateListener = Task { [weak self] in
             guard let self else { return }
-            do {
-                for try await _ in self.supabase.client.auth.authStateChanges {
-                    await self.refreshSession()
-                }
-            } catch {}
+            // Non‑throwing async sequence; react to any auth state changes.
+            for await _ in self.supabase.client.auth.authStateChanges {
+                await self.refreshSession()
+            }
         }
     }
-    
+
     private func signOutLocally() async {
         currentUser = nil
         currentSupabaseUser = nil
@@ -401,250 +435,103 @@ final class AuthService: ObservableObject {
         isEmailVerified = false
         pendingVerificationEmail = nil
     }
-    
-    private func createUserProfile(user: User, familyName: String) async throws {
-        let family = Family(ownerId: user.id.uuidString, name: familyName)
-        let createdFamily = try await DatabaseAPI.shared.createFamily(family)
-        let appUser = AppUser(
-            id: user.id.uuidString,
-            role: .parent,
-            email: user.email,
-            displayName: "\(familyName) Parent",
-            familyId: createdFamily.id
-        )
-        currentUser = appUser
-        currentSupabaseUser = user
-        isAuthenticated = true
-        pendingVerificationEmail = nil
-        isEmailVerified = (user.emailConfirmedAt != nil)
-    }
-    
+
+    // MARK: - Profile load (fallback to keep UI working)
+    /// Replace with your real fetch from `profiles` (if you have one).
     private func loadUserProfile(supabaseUser: User) async {
-        let appUser = AppUser(
-            id: supabaseUser.id.uuidString,
-            role: .parent,
-            email: supabaseUser.email,
-            displayName: "Parent"
-        )
-        currentUser = appUser
-        currentSupabaseUser = supabaseUser
-        isAuthenticated = true
-        isEmailVerified = (supabaseUser.emailConfirmedAt != nil)
-        pendingVerificationEmail = nil
-    }
-    
-    private static func generateCode() -> String {
-        String((0..<6).map { _ in "0123456789".randomElement()! })
-    }
-}
-
-// MARK: - Supporting Types
-
-enum AuthError: LocalizedError {
-    case invalidPin, childNotFound
-    var errorDescription: String? {
-        switch self {
-        case .invalidPin: return "Please enter a valid 4-digit PIN"
-        case .childNotFound: return "Child not found"
+        // Keep it simple and avoid userMetadata casting hassles.
+        if currentUser == nil {
+            let email = supabaseUser.email ?? ""
+            let display = email.split(separator: "@").first.map(String.init) ?? "User"
+            currentUser = AppUser(
+                id: supabaseUser.id.uuidString,
+                role: .parent,                // adjust if you store per‑user role
+                email: email,
+                displayName: display,
+                familyId: nil,
+                createdAt: Date()
+            )
         }
     }
-}
 
-private enum VerificationError: LocalizedError {
-    case expired, invalid
-
-    var errorDescription: String? {
-        switch self {
-        case .expired: return "Your code has expired. Please resend a new code."
-        case .invalid: return "That code doesn't match. Please try again."
-        }
-    }
-}
-
-private enum VerificationStore {
-    static var code: String?
-    static var expiresAt: Date?
+    enum VerificationError: Error { case invalid }
 }
 ```
 
 ## File: AuthenticationView.swift
 
 ```swift
-//
-//  AuthenticationView.swift
-//  AllowanceAlleyNextgen
-//
-//  Created by Paul Marshall on 8/22/25.
-//
-
 import SwiftUI
 
 struct AuthenticationView: View {
     @EnvironmentObject var authService: AuthService
-    @State private var isSignUp = false
+
     @State private var email = ""
     @State private var password = ""
     @State private var familyName = ""
-    @State private var error: String?
-    @State private var isLoading = false
-    
+
+    @State private var signinError: String?
+    @State private var signupError: String?
+    @State private var working = false
+
     var body: some View {
         NavigationView {
-            VStack(spacing: 24) {
-                // Header
-                VStack(spacing: 8) {
-                    Image(systemName: "house.fill")
-                        .font(.system(size: 60))
-                        .foregroundColor(.blue)
-                    Text("Allowance Alley")
-                        .font(.largeTitle)
-                        .fontWeight(.bold)
-                        .foregroundColor(.blue)
-                    Text("Manage chores and rewards for your family")
-                        .font(.subheadline)
-                        .foregroundColor(.secondary)
-                        .multilineTextAlignment(.center)
-                }
-                .padding(.top, 40)
-                
-                Spacer()
-                
-                // Form
-                VStack(spacing: 16) {
-                    // Toggle between Sign In / Sign Up
-                    Picker("Mode", selection: $isSignUp) {
-                        Text("Sign In").tag(false)
-                        Text("Sign Up").tag(true)
-                    }
-                    .pickerStyle(.segmented)
-                    
-                    // Email field
+            Form {
+                Section("Account") {
                     TextField("Email", text: $email)
-                        .textFieldStyle(.roundedBorder)
-                        .autocapitalization(.none)
                         .keyboardType(.emailAddress)
-                    
-                    // Password field
-                    SecureField("Password", text: $password)
-                        .textFieldStyle(.roundedBorder)
-                    
-                    // Family name for sign up
-                    if isSignUp {
-                        TextField("Family Name", text: $familyName)
-                            .textFieldStyle(.roundedBorder)
-                    }
-                    
-                    // Error message
-                    if let error {
-                        Text(error)
-                            .foregroundColor(.red)
-                            .font(.footnote)
-                    }
-                    
-                    // Submit button
-                    Button {
-                        Task { await handleAuth() }
-                    } label: {
-                        HStack {
-                            if isLoading {
-                                ProgressView()
-                                    .scaleEffect(0.8)
-                                    .progressViewStyle(CircularProgressViewStyle(tint: .white))
-                            }
-                            Text(isSignUp ? "Create Account" : "Sign In")
-                        }
-                        .frame(maxWidth: .infinity)
-                    }
-                    .buttonStyle(.borderedProminent)
-                    .disabled(isLoading || email.isEmpty || password.isEmpty || (isSignUp && familyName.isEmpty))
-                }
-                .padding(.horizontal)
-                
-                Spacer()
-                
-                // Child login option
-                VStack(spacing: 16) {
-                    Divider()
-                    
-                    Text("Child? Ask a parent to help you sign in")
-                        .font(.footnote)
-                        .foregroundColor(.secondary)
-                        .multilineTextAlignment(.center)
-                    
-                    NavigationLink("Child Sign In") {
-                        ChildSignInView()
-                    }
-                    .font(.footnote)
-                }
-                .padding(.bottom, 32)
-            }
-            .padding()
-        }
-    }
-    
-    private func handleAuth() async {
-        isLoading = true
-        error = nil
-        
-        do {
-            if isSignUp {
-                try await authService.signUp(email: email, password: password, familyName: familyName)
-            } else {
-                try await authService.signIn(email: email, password: password)
-            }
-        } catch {
-            self.error = error.localizedDescription
-        }
-        
-        isLoading = false
-    }
-}
+                        .textContentType(.emailAddress)
+                        .autocapitalization(.none)
+                        .disableAutocorrection(true)
 
-struct ChildSignInView: View {
-    @EnvironmentObject var authService: AuthService
-    @Environment(\.dismiss) private var dismiss
-    @State private var pin = ""
-    @State private var error: String?
-    
-    var body: some View {
-        VStack(spacing: 24) {
-            Text("Child Sign In")
-                .font(.title2)
-                .fontWeight(.semibold)
-            
-            Text("Enter your 4-digit PIN")
-                .font(.subheadline)
-                .foregroundColor(.secondary)
-            
-            TextField("PIN", text: $pin)
-                .textFieldStyle(.roundedBorder)
-                .keyboardType(.numberPad)
-                .multilineTextAlignment(.center)
-                .font(.title)
-            
-            if let error {
-                Text(error)
-                    .foregroundColor(.red)
-                    .font(.footnote)
-            }
-            
-            Button("Sign In") {
-                Task {
-                    do {
-                        try await authService.signInChild(childId: "demo-child", pin: pin)
-                        dismiss()
-                    } catch {
-                        self.error = error.localizedDescription
+                    SecureField("Password", text: $password)
+                        .textContentType(.password)
+                }
+
+                Section("Family (optional for sign up)") {
+                    TextField("Family Name", text: $familyName)
+                }
+
+                if let signinError { Text(signinError).foregroundColor(.red) }
+                if let signupError { Text(signupError).foregroundColor(.red) }
+
+                Section {
+                    Button(working ? "Signing In…" : "Sign In") {
+                        Task { await signIn() }
                     }
+                    .disabled(working || email.isEmpty || password.isEmpty)
+
+                    Button(working ? "Creating…" : "Sign Up") {
+                        Task { await signUp() }
+                    }
+                    .disabled(working || email.isEmpty || password.isEmpty)
                 }
             }
-            .buttonStyle(.borderedProminent)
-            .disabled(pin.count != 4)
-            
-            Spacer()
+            .navigationTitle("Welcome")
         }
-        .padding()
-        .navigationBarTitleDisplayMode(.inline)
+    }
+
+    private func signIn() async {
+        working = true; defer { working = false }
+        signinError = nil
+        do {
+            try await authService.signIn(email: email.trimmingCharacters(in: .whitespaces),
+                                         password: password)
+        } catch {
+            signinError = error.localizedDescription
+        }
+    }
+
+    private func signUp() async {
+        working = true; defer { working = false }
+        signupError = nil
+        do {
+            try await authService.signUp(email: email.trimmingCharacters(in: .whitespaces),
+                                         password: password,
+                                         familyName: familyName.trimmingCharacters(in: .whitespaces))
+        } catch {
+            signupError = error.localizedDescription
+        }
     }
 }
 ```
@@ -946,82 +833,80 @@ enum DatabaseError: LocalizedError {
 ## File: EmailVerificationView.swift
 
 ```swift
-//
-//  EmailVerificationView.swift
-//  AllowanceAlleyNextgen
-//
-//  Created by Paul Marshall on 8/22/25.
-//
-
 import SwiftUI
 
 struct EmailVerificationView: View {
     @EnvironmentObject var authService: AuthService
-    @State private var inputCode: String = ""
+
+    @State private var code: String = ""
+    @State private var isWorking = false
     @State private var error: String?
 
-    // Ticks UI every second so the countdown updates
-    private let timer = Timer.publish(every: 1, on: .main, in: .common).autoconnect()
-
-    private var countdownText: String {
-        guard let exp = authService.codeExpiresAt else { return "" }
-        let remaining = Int(max(0, exp.timeIntervalSinceNow))
-        let m = remaining / 60
-        let s = remaining % 60
-        return String(format: "%02d:%02d", m, s)
-    }
-
     var body: some View {
-        VStack(spacing: 20) {
-            Text("Enter Verification Code")
-                .font(.title2)
-                .fontWeight(.semibold)
+        NavigationView {
+            VStack(spacing: 16) {
+                Text("Enter Verification Code")
+                    .font(.title3)
+                    .fontWeight(.semibold)
 
-            TextField("6-digit code", text: $inputCode)
-                .keyboardType(.numberPad)
-                .textFieldStyle(.roundedBorder)
-                .multilineTextAlignment(.center)
-
-            if let error {
-                Text(error)
-                    .foregroundColor(.red)
-                    .font(.footnote)
-            }
-
-            Button("Verify") {
-                Task { await verify() }
-            }
-            .buttonStyle(.borderedProminent)
-            .disabled(inputCode.count != 6)
-
-            if !countdownText.isEmpty {
-                Text("Code expires in \(countdownText)")
-                    .font(.footnote)
-                    .foregroundColor(.secondary)
-            }
-
-            Button("Resend Code") {
-                Task {
-                    do {
-                        try await authService.resendVerificationCode()
-                    } catch {
-                        self.error = error.localizedDescription
-                    }
+                if let email = authService.pendingVerificationEmail {
+                    Text("We emailed a 6‑digit code to:")
+                        .foregroundColor(.secondary)
+                    Text(email)
+                        .font(.subheadline)
+                        .fontWeight(.medium)
                 }
+
+                TextField("6‑digit code", text: $code)
+                    .keyboardType(.numberPad)
+                    .textContentType(.oneTimeCode)
+                    .multilineTextAlignment(.center)
+                    .padding()
+                    .background(Color(UIColor.secondarySystemBackground))
+                    .cornerRadius(10)
+                    // iOS 17+ onChange (two‑arg or zero‑arg). Use zero‑arg here.
+                    .onChange(of: code) {
+                        code = String(code.prefix(6))
+                    }
+
+                if let error {
+                    Text(error).foregroundColor(.red)
+                }
+
+                Button(isWorking ? "Verifying…" : "Verify") {
+                    Task { await verify() }
+                }
+                .buttonStyle(.borderedProminent)
+                .disabled(isWorking || code.count != 6)
+
+                Button("Resend Code") {
+                    Task { await resend() }
+                }
+                .disabled(isWorking)
+                .padding(.top, 4)
+
+                Spacer()
             }
-            .font(.footnote)
-        }
-        .padding()
-        .onReceive(timer) { _ in
-            // trigger view updates as time passes
-            _ = countdownText
+            .padding()
+            .navigationTitle("Verify Email")
         }
     }
 
-    @MainActor
     private func verify() async {
+        isWorking = true; defer { isWorking = false }
         do {
-            try await authService.verifyCode(inputCode)
+            try await authService.verifyCode(code)
+            error = nil
+        } catch {
+            self.error = error.localizedDescription
+        }
+    }
+
+    private func resend() async {
+        isWorking = true; defer { isWorking = false }
+        do {
+            try await authService.resendVerificationCode()
+            error = nil
         } catch {
             self.error = error.localizedDescription
         }
@@ -1169,6 +1054,94 @@ enum ImageError: LocalizedError {
         }
     }
 }
+```
+
+## File: MainsView.swift
+
+```swift
+//
+//  MainsView.swift
+//  AllowanceAlleyNextgen
+//
+//  Created by Paul Marshall on 8/23/25.
+//
+import SwiftUI
+
+// MARK: - Parent Main
+
+struct ParentMainView: View {
+    var body: some View {
+        TabView {
+            ParentDashboardView()
+                .tabItem { Label("Home", systemImage: "house.fill") }
+
+            ReportsView()
+                .tabItem { Label("Reports", systemImage: "chart.bar.fill") }
+
+            ParentSettingsView()
+                .tabItem { Label("Settings", systemImage: "gearshape.fill") }
+        }
+    }
+}
+
+// MARK: - Child Main
+
+struct ChildMainView: View {
+    let childId: String
+
+    var body: some View {
+        TabView {
+            ChildChoresView(childId: childId)
+                .tabItem { Label("Chores", systemImage: "checklist") }
+
+            ChildRewardsView(childId: childId)
+                .tabItem { Label("Rewards", systemImage: "gift.fill") }
+
+            ChildSettingsView(childId: childId)
+                .tabItem { Label("Settings", systemImage: "gearshape.fill") }
+        }
+    }
+}
+
+// MARK: - Child Chores (simple placeholder hooked to your services)
+
+struct ChildChoresView: View {
+    let childId: String
+    @EnvironmentObject var choreService: ChoreService
+
+    @State private var todays: [ChoreAssignment] = []
+
+    var body: some View {
+        NavigationView {
+            List {
+                if todays.isEmpty {
+                    Text("No chores due today 🎉").foregroundColor(.secondary)
+                } else {
+                    ForEach(todays, id: \.id) { a in
+                        VStack(alignment: .leading) {
+                            Text(choreTitle(for: a.choreId))
+                                .font(.headline)
+                            if let due = a.dueDate {
+                                Text("Due: \(due.formatted(date: .abbreviated, time: .shortened))")
+                                    .font(.caption).foregroundColor(.secondary)
+                            }
+                        }
+                    }
+                }
+            }
+            .navigationTitle("My Chores")
+            .task {
+                // use what you already load into the service
+                todays = choreService.getTodayAssignments(for: childId)
+            }
+        }
+    }
+
+    private func choreTitle(for choreId: String) -> String {
+        choreService.chores.first(where: { $0.id == choreId })?.title ?? "Chore"
+    }
+}
+
 ```
 
 ## File: Models.swift
@@ -1859,6 +1832,280 @@ struct ParentDashboardView: View {
 }
 ```
 
+## File: ParentSheets.swift
+
+```swift
+import SwiftUI
+
+// MARK: - Add Child
+
+struct AddChildView: View {
+    @Environment(\.dismiss) private var dismiss
+    @EnvironmentObject var familyService: FamilyService
+    @EnvironmentObject var authService: AuthService
+
+    @State private var name = ""
+    @State private var hasBirthdate = false
+    @State private var birthdateValue = Date()
+    @State private var pin = ""
+
+    @State private var error: String?
+    @State private var isSaving = false
+
+    var body: some View {
+        NavigationView {
+            Form {
+                Section("Child") {
+                    TextField("First name", text: $name)
+
+                    Toggle("Set birthdate", isOn: $hasBirthdate)
+
+                    if hasBirthdate {
+                        DatePicker("Birthdate",
+                                   selection: $birthdateValue,
+                                   displayedComponents: .date)
+                    }
+
+                    TextField("4‑digit PIN (optional)", text: $pin)
+                        .keyboardType(.numberPad)
+                }
+
+                if let error {
+                    Text(error).foregroundColor(.red)
+                }
+            }
+            .navigationTitle("Add Child")
+            .toolbar {
+                ToolbarItem(placement: .cancellationAction) {
+                    Button("Cancel") { dismiss() }
+                }
+                ToolbarItem(placement: .confirmationAction) {
+                    Button(isSaving ? "Saving…" : "Save") {
+                        Task { await save() }
+                    }
+                    .disabled(isSaving || name.trimmingCharacters(in: .whitespaces).isEmpty)
+                }
+            }
+        }
+    }
+
+    private func save() async {
+        isSaving = true; defer { isSaving = false }
+        do {
+            let bd: Date? = hasBirthdate ? birthdateValue : nil
+            try await familyService.createChild(name: name.trimmingCharacters(in: .whitespaces),
+                                               birthdate: bd,
+                                               pin: pin)
+            dismiss()
+        } catch {
+            self.error = error.localizedDescription
+        }
+    }
+}
+
+// MARK: - Add Chore
+
+struct AddChoreView: View {
+    @Environment(\.dismiss) private var dismiss
+    @EnvironmentObject var choreService: ChoreService
+    @EnvironmentObject var familyService: FamilyService
+    @EnvironmentObject var authService: AuthService
+
+    @State private var title = ""
+    @State private var description = ""
+    @State private var points = 10
+    @State private var requirePhoto = false
+
+    // Simpler selection model to help the type checker
+    @State private var selected: [String: Bool] = [:]
+
+    @State private var error: String?
+    @State private var isSaving = false
+
+    var body: some View {
+        NavigationView {
+            Form {
+                Section("Chore") {
+                    TextField("Title", text: $title)
+                    TextField("Description (optional)", text: $description)
+                    Stepper("Points: \(points)", value: $points, in: 0...500, step: 5)
+                    Toggle("Require photo proof", isOn: $requirePhoto)
+                }
+
+                Section("Assign to") {
+                    if familyService.children.isEmpty {
+                        Text("No children yet").foregroundColor(.secondary)
+                    } else {
+                        ForEach(familyService.children) { child in
+                            let isOn = Binding(
+                                get: { selected[child.id] ?? false },
+                                set: { selected[child.id] = $0 }
+                            )
+                            Toggle(child.name, isOn: isOn)
+                        }
+                    }
+                }
+
+                if let error {
+                    Text(error).foregroundColor(.red)
+                }
+            }
+            .navigationTitle("Add Chore")
+            .toolbar {
+                ToolbarItem(placement: .cancellationAction) {
+                    Button("Cancel") { dismiss() }
+                }
+                ToolbarItem(placement: .confirmationAction) {
+                    Button(isSaving ? "Saving…" : "Save") {
+                        Task { await save() }
+                    }
+                    .disabled(isSaving || title.trimmingCharacters(in: .whitespaces).isEmpty)
+                }
+            }
+            .onAppear {
+                // initialize selection map once to keep ForEach simple
+                if selected.isEmpty {
+                    var map: [String: Bool] = [:]
+                    for c in familyService.children { map[c.id] = false }
+                    selected = map
+                }
+            }
+        }
+    }
+
+    private func save() async {
+        guard let parentId = authService.currentUser?.id,
+              let familyId = authService.currentUser?.familyId ?? authService.currentUser?.id else { return }
+
+        isSaving = true; defer { isSaving = false }
+
+        let chore = Chore(
+            familyId: familyId,
+            title: title.trimmingCharacters(in: .whitespaces),
+            description: description.isEmpty ? nil : description,
+            points: points,
+            requirePhoto: requirePhoto,
+            parentUserId: parentId
+        )
+
+        do {
+            let childIds = selected.filter { $0.value }.map { $0.key }
+            try await choreService.createChore(chore, assignedTo: childIds)
+            dismiss()
+        } catch {
+            self.error = error.localizedDescription
+        }
+    }
+}
+
+// MARK: - Add Reward
+
+struct AddRewardView: View {
+    @Environment(\.dismiss) private var dismiss
+    @EnvironmentObject var rewardsService: RewardsService
+    @EnvironmentObject var authService: AuthService
+
+    @State private var name = ""
+    @State private var cost = 50
+    @State private var error: String?
+    @State private var isSaving = false
+
+    var body: some View {
+        NavigationView {
+            Form {
+                TextField("Reward name", text: $name)
+                Stepper("Cost: \(cost) points", value: $cost, in: 0...10000, step: 10)
+                if let error { Text(error).foregroundColor(.red) }
+            }
+            .navigationTitle("Add Reward")
+            .toolbar {
+                ToolbarItem(placement: .cancellationAction) {
+                    Button("Cancel") { dismiss() }
+                }
+                ToolbarItem(placement: .confirmationAction) {
+                    Button(isSaving ? "Saving…" : "Save") {
+                        Task { await save() }
+                    }
+                    .disabled(isSaving || name.trimmingCharacters(in: .whitespaces).isEmpty)
+                }
+            }
+        }
+    }
+
+    private func save() async {
+        guard let familyId = authService.currentUser?.familyId ?? authService.currentUser?.id else { return }
+        isSaving = true; defer { isSaving = false }
+        do {
+            try await rewardsService.createReward(
+                Reward(familyId: familyId,
+                       name: name.trimmingCharacters(in: .whitespaces),
+                       costPoints: cost)
+            )
+            dismiss()
+        } catch {
+            self.error = error.localizedDescription
+        }
+    }
+}
+
+// MARK: - Approvals
+
+struct ApprovalsView: View {
+    @EnvironmentObject var choreService: ChoreService
+    @State private var error: String?
+
+    var body: some View {
+        List {
+            if choreService.pendingApprovals.isEmpty {
+                Text("Nothing to approve right now").foregroundColor(.secondary)
+            } else {
+                ForEach(choreService.pendingApprovals) { c in
+                    ApprovalRow(completion: c) { action in
+                        Task {
+                            do {
+                                switch action {
+                                case .approve: try await choreService.approveCompletion(c)
+                                case .reject:  try await choreService.rejectCompletion(c)
+                                }
+                            } catch { self.error = error.localizedDescription }
+                        }
+                    }
+                }
+            }
+
+            if let error { Text(error).foregroundColor(.red) }
+        }
+        .navigationTitle("Approvals")
+    }
+}
+
+private enum ApprovalAction { case approve, reject }
+
+private struct ApprovalRow: View {
+    let completion: ChoreCompletion
+    let onAction: (ApprovalAction) -> Void
+
+    var body: some View {
+        HStack {
+            VStack(alignment: .leading, spacing: 4) {
+                Text("Completion \(completion.id.prefix(6))…")
+                    .font(.headline)
+                Text("Status: \(completion.status.rawValue)")
+                    .font(.caption).foregroundColor(.secondary)
+            }
+            Spacer()
+            HStack(spacing: 8) {
+                Button("Approve") { onAction(.approve) }
+                    .buttonStyle(.borderedProminent)
+                Button("Reject")  { onAction(.reject)  }
+                    .buttonStyle(.bordered)
+            }
+        }
+        .padding(.vertical, 6)
+    }
+}
+```
+
 ## File: RewardsService.swift
 
 ```swift
@@ -2077,22 +2324,21 @@ final class StorageAPI {
     static let shared = StorageAPI()
     private let client = AppSupabase.shared.client
     private init() {}
-    
+
     @discardableResult
     func uploadImage(_ data: Data, bucket: String, path: String) async throws -> String {
-        // Upload file to Supabase Storage
-        _ = try await client.storage
+        // NEW API: upload(_:data:options:)
+        try await client.storage
             .from(bucket)
-            .upload(path: path, file: data)
-        
-        // Get public URL
+            .upload(path, data: data)
+
         let publicURL = try client.storage
             .from(bucket)
             .getPublicURL(path: path)
-        
+
         return publicURL.absoluteString
     }
-    
+
     func downloadImage(bucket: String, path: String) async throws -> Data {
         try await client.storage
             .from(bucket)
