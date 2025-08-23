@@ -27,9 +27,18 @@ final class AuthService: ObservableObject {
         }
     }
 
+    // Convenience to clear local auth state from the UI.
+    func resetAuthenticationState() {
+        Task { await signOutLocally() }
+    }
+
     // MARK: - Sign Up / Sign In / Sign Out
+
+    /// Standard email/password sign‑up. Supabase emails a 6‑digit OTP.
     func signUp(email: String, password: String, familyName: String?) async throws {
         let result = try await supabase.client.auth.signUp(email: email, password: password)
+
+        // In your SDK, result.user is non‑optional.
         let user = result.user
         currentSupabaseUser = user
         isEmailVerified = (user.emailConfirmedAt != nil)
@@ -53,17 +62,24 @@ final class AuthService: ObservableObject {
     }
 
     // MARK: - OTP Verification (REAL Supabase flow)
+
     func resendVerificationCode() async throws {
         guard let email = pendingVerificationEmail else { throw VerificationError.invalid }
+        // Your SDK expects email: before type:
         try await supabase.client.auth.resend(email: email, type: .signup)
     }
 
     func verifyCode(_ code: String) async throws {
         guard let email = pendingVerificationEmail else { throw VerificationError.invalid }
 
-        try await supabase.client.auth.verifyOTP(email: email, token: code, type: .signup)
+        try await supabase.client.auth.verifyOTP(
+            email: email,
+            token: code,
+            type: .signup
+        )
 
-        let session = await supabase.client.auth.session   // non‑throwing
+        // On success, fetch the (throwing) session property
+        let session = try await supabase.client.auth.session
         await applySession(session)
         pendingVerificationEmail = nil
         isAuthenticated = true
@@ -73,16 +89,21 @@ final class AuthService: ObservableObject {
     }
 
     // MARK: - Private
+
     private func postLoginBootstrap(familyName: String?) async throws {
         // Any first‑login bootstrap (e.g., ensure family) would go here.
-        let session = await supabase.client.auth.session   // non‑throwing
+        let session = try await supabase.client.auth.session
         await applySession(session)
+        // Example later: try await FamilyService.shared.ensureFamilyExists(named: familyName)
     }
 
     private func refreshSession() async {
-        // Non‑throwing in your SDK; no try/catch needed
-        let session = await supabase.client.auth.session
-        await applySession(session)
+        do {
+            let session = try await supabase.client.auth.session
+            await applySession(session)
+        } catch {
+            await signOutLocally()
+        }
     }
 
     private func applySession(_ session: Session) async {
@@ -96,6 +117,7 @@ final class AuthService: ObservableObject {
         authStateListener?.cancel()
         authStateListener = Task { [weak self] in
             guard let self else { return }
+            // Non‑throwing async sequence; react to any auth state changes.
             for await _ in self.supabase.client.auth.authStateChanges {
                 await self.refreshSession()
             }
@@ -111,14 +133,15 @@ final class AuthService: ObservableObject {
     }
 
     // MARK: - Profile load (fallback to keep UI working)
+    /// Replace with your real fetch from `profiles` (if you have one).
     private func loadUserProfile(supabaseUser: User) async {
-        // Keep it simple and avoid userMetadata (it's [String: AnyJSON] and non‑optional in your SDK)
+        // Keep it simple and avoid userMetadata casting hassles.
         if currentUser == nil {
             let email = supabaseUser.email ?? ""
             let display = email.split(separator: "@").first.map(String.init) ?? "User"
             currentUser = AppUser(
                 id: supabaseUser.id.uuidString,
-                role: .parent,          // adjust if you set roles elsewhere
+                role: .parent,                // adjust if you store per‑user role
                 email: email,
                 displayName: display,
                 familyId: nil,
