@@ -20,7 +20,6 @@ final class AuthService: ObservableObject {
     private init() {}
 
     // MARK: - Lifecycle
-
     func initialize() {
         Task {
             await refreshSession()
@@ -29,12 +28,8 @@ final class AuthService: ObservableObject {
     }
 
     // MARK: - Sign Up / Sign In / Sign Out
-
-    /// Standard email/password sign‑up. Supabase emails a 6‑digit OTP.
     func signUp(email: String, password: String, familyName: String?) async throws {
         let result = try await supabase.client.auth.signUp(email: email, password: password)
-
-        // In your SDK, result.user is non‑optional.
         let user = result.user
         currentSupabaseUser = user
         isEmailVerified = (user.emailConfirmedAt != nil)
@@ -49,7 +44,7 @@ final class AuthService: ObservableObject {
 
     func signIn(email: String, password: String) async throws {
         _ = try await supabase.client.auth.signIn(email: email, password: password)
-        try await refreshSession()
+        await refreshSession()
     }
 
     func signOut() async throws {
@@ -58,24 +53,17 @@ final class AuthService: ObservableObject {
     }
 
     // MARK: - OTP Verification (REAL Supabase flow)
-
     func resendVerificationCode() async throws {
         guard let email = pendingVerificationEmail else { throw VerificationError.invalid }
-        // Your SDK expects email: before type:
         try await supabase.client.auth.resend(email: email, type: .signup)
     }
 
     func verifyCode(_ code: String) async throws {
         guard let email = pendingVerificationEmail else { throw VerificationError.invalid }
 
-        try await supabase.client.auth.verifyOTP(
-            email: email,
-            token: code,
-            type: .signup
-        )
+        try await supabase.client.auth.verifyOTP(email: email, token: code, type: .signup)
 
-        // On success, we should have a valid session/user.
-        let session = try await supabase.client.auth.session
+        let session = await supabase.client.auth.session   // non‑throwing
         await applySession(session)
         pendingVerificationEmail = nil
         isAuthenticated = true
@@ -85,22 +73,16 @@ final class AuthService: ObservableObject {
     }
 
     // MARK: - Private
-
     private func postLoginBootstrap(familyName: String?) async throws {
-        // Place any first‑login bootstrap here (ensure family, etc.).
-        let session = try await supabase.client.auth.session
+        // Any first‑login bootstrap (e.g., ensure family) would go here.
+        let session = await supabase.client.auth.session   // non‑throwing
         await applySession(session)
-        // Example if you later want:
-        // try await FamilyService.shared.ensureFamilyExists(named: familyName)
     }
 
     private func refreshSession() async {
-        do {
-            let session = try await supabase.client.auth.session
-            await applySession(session)
-        } catch {
-            await signOutLocally()
-        }
+        // Non‑throwing in your SDK; no try/catch needed
+        let session = await supabase.client.auth.session
+        await applySession(session)
     }
 
     private func applySession(_ session: Session) async {
@@ -114,7 +96,6 @@ final class AuthService: ObservableObject {
         authStateListener?.cancel()
         authStateListener = Task { [weak self] in
             guard let self else { return }
-            // Non‑throwing sequence on recent SDKs
             for await _ in self.supabase.client.auth.authStateChanges {
                 await self.refreshSession()
             }
@@ -130,18 +111,14 @@ final class AuthService: ObservableObject {
     }
 
     // MARK: - Profile load (fallback to keep UI working)
-    /// Replace with your real fetch from `profiles` (if you have one).
     private func loadUserProfile(supabaseUser: User) async {
-        // If you already map to AppUser elsewhere, keep that instead.
-        // Your AppUser initializer expects: id, role, email, displayName, familyId, createdAt
+        // Keep it simple and avoid userMetadata (it's [String: AnyJSON] and non‑optional in your SDK)
         if currentUser == nil {
             let email = supabaseUser.email ?? ""
-            let display = supabaseUser.userMetadata?["full_name"] as? String
-                ?? email.split(separator: "@").first.map(String.init)
-                ?? "User"
+            let display = email.split(separator: "@").first.map(String.init) ?? "User"
             currentUser = AppUser(
                 id: supabaseUser.id.uuidString,
-                role: .parent,                // adjust if you store per‑user role
+                role: .parent,          // adjust if you set roles elsewhere
                 email: email,
                 displayName: display,
                 familyId: nil,
