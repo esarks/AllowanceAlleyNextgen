@@ -1,4 +1,3 @@
-
 import Foundation
 import Combine
 
@@ -72,5 +71,13 @@ final class ChoreService: ObservableObject {
         if let i = completions.firstIndex(where: { $0.id == updated.id }) { completions[i] = updated }
         pendingApprovals.removeAll { $0.id == updated.id || updated.status != .pending }
         if updated.status == .pending { pendingApprovals.append(updated) }
+    }
+
+    // --- Helper used by ChildChoresView ---
+    func getTodayAssignments(for memberId: String) -> [ChoreAssignment] {
+        let cal = Calendar(identifier: .iso8601)
+        return assignments.filter { a in
+            a.memberId == memberId && (a.dueDateAsDate.map { cal.isDateInToday($0) } ?? false)
+        }
     }
 }

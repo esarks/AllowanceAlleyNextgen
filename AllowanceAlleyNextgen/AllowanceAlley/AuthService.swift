@@ -1,4 +1,7 @@
-// AuthService.swift — Supabase Swift v2 friendly, no mock services
+// =============================================================================
+// FILE: AuthService.swift (Updated with Email/Password auth)
+// =============================================================================
+
 import Foundation
 import Combine
 import Supabase
@@ -65,7 +68,21 @@ final class AuthService: ObservableObject {
         isAuthenticated = true
     }
 
-    // MARK: - Email OTP
+    // MARK: - Email/Password Authentication
+
+    func signUp(email: String, password: String) async throws {
+        let response = try await supabase.client.auth.signUp(email: email, password: password)
+        if let session = response.session {
+            try await loadUserFromSession(session)
+        }
+    }
+
+    func signIn(email: String, password: String) async throws {
+        let session = try await supabase.client.auth.signIn(email: email, password: password)
+        try await loadUserFromSession(session)
+    }
+
+    // MARK: - Email OTP (keep for future use)
 
     func sendCode(to email: String) async throws {
         try await supabase.client.auth.signInWithOTP(email: email, shouldCreateUser: true)

@@ -9,7 +9,7 @@ struct AddChildView: View {
     @State private var name = ""
     @State private var hasBirthdate = false
     @State private var birthdateValue = Date()
-    @State private var pin = ""               // kept for UI; not sent to DB
+    @State private var pin = ""               // UI only; not saved
 
     @State private var error: String?
     @State private var isSaving = false
@@ -19,22 +19,19 @@ struct AddChildView: View {
             Form {
                 Section("Child") {
                     TextField("First name", text: $name)
-
                     Toggle("Set birthdate", isOn: $hasBirthdate)
-
                     if hasBirthdate {
-                        DatePicker("Birthdate",
-                                   selection: $birthdateValue,
-                                   displayedComponents: .date)
+                        DatePicker(
+                            "Birthdate",
+                            selection: $birthdateValue,
+                            displayedComponents: .date
+                        )
                     }
-
                     TextField("4-digit PIN (optional)", text: $pin)
                         .keyboardType(.numberPad)
                 }
 
-                if let error {
-                    Text(error).foregroundColor(.red)
-                }
+                if let error { Text(error).foregroundColor(.red) }
             }
             .navigationTitle("Add Child")
             .toolbar {
@@ -53,28 +50,15 @@ struct AddChildView: View {
 
     private func save() async {
         isSaving = true; defer { isSaving = false }
-        guard let familyId = authService.currentUser?.familyId,
-              let parentId = authService.currentUser?.id else {
-            self.error = "Missing family or user context"
-            return
+        guard let familyId = authService.currentUser?.familyId else {
+            self.error = "Missing family context"; return
         }
-
         do {
-            // Prefer the canonical family_members entry for a child
             _ = try await DatabaseAPI.shared.createChildMember(
                 familyId: familyId,
                 childName: name.trimmingCharacters(in: .whitespaces),
                 age: nil
             )
-
-            // Optional: also create a child profile record if you’re using that table
-            // _ = try await DatabaseAPI.shared.createChildProfile(
-            //     parentUserId: parentId,
-            //     name: name.trimmingCharacters(in: .whitespaces),
-            //     birthdate: hasBirthdate ? birthdateValue : nil,
-            //     avatarURL: nil
-            // )
-
             dismiss()
         } catch {
             self.error = error.localizedDescription
@@ -87,6 +71,24 @@ struct AddChildView: View {
 private struct SelectableChild: Identifiable, Hashable {
     let id: String
     let name: String
+}
+
+// Small wrapper so the Toggle binding is trivial (helps the type-checker)
+private struct ChildSelectRow: View {
+    let child: SelectableChild
+    @Binding var selected: Set<String>
+
+    var isOn: Bool { selected.contains(child.id) }
+
+    var body: some View {
+        Toggle(child.name, isOn: Binding(
+            get: { isOn },
+            set: { on in
+                if on { selected.insert(child.id) }
+                else { selected.remove(child.id) }
+            }
+        ))
+    }
 }
 
 struct AddChoreView: View {
@@ -116,28 +118,17 @@ struct AddChoreView: View {
                 }
 
                 Section("Assign to") {
-                    if isLoadingKids {
-                        ProgressView().progressViewStyle(.circular)
-                    } else if children.isEmpty {
+                    if isLoadingKids { ProgressView() }
+                    else if children.isEmpty {
                         Text("No children yet").foregroundColor(.secondary)
                     } else {
                         ForEach(children) { child in
-                            Toggle(isOn: Binding(
-                                get: { selected.contains(child.id) },
-                                set: { isOn in
-                                    if isOn { selected.insert(child.id) }
-                                    else { selected.remove(child.id) }
-                                })
-                            ) {
-                                Text(child.name)
-                            }
+                            ChildSelectRow(child: child, selected: $selected)
                         }
                     }
                 }
 
-                if let error {
-                    Text(error).foregroundColor(.red)
-                }
+                if let error { Text(error).foregroundColor(.red) }
             }
             .navigationTitle("Add Chore")
             .toolbar {
@@ -157,17 +148,14 @@ struct AddChoreView: View {
 
     private func loadChildren() async {
         guard let familyId = authService.currentUser?.familyId else { return }
-        isLoadingKids = true
-        defer { isLoadingKids = false }
+        isLoadingKids = true; defer { isLoadingKids = false }
         do {
-            // Pull family members with child role
             let members = try await DatabaseAPI.shared.listFamilyMembers(
                 familyId: familyId,
                 role: .child
             )
             self.children = members.map {
-                // Try common name keys; fall back to id
-                SelectableChild(id: $0.id, name: ($0.name ?? $0.childName ?? "Child \($0.id.prefix(4))"))
+                SelectableChild(id: $0.id, name: $0.childName ?? "Child \($0.id.prefix(4))")
             }
         } catch {
             self.error = error.localizedDescription
@@ -177,14 +165,17 @@ struct AddChoreView: View {
     private func save() async {
         guard let familyId = authService.currentUser?.familyId,
               let parentId = authService.currentUser?.id else {
-            self.error = "Missing family or user context"
+            self.error = "Missing family or user context"; return
+        }
+
+        if selected.isEmpty {
+            self.error = "Select at least one child."
             return
         }
 
         isSaving = true; defer { isSaving = false }
 
         do {
-            // Create chore
             let chore = try await DatabaseAPI.shared.createChore(
                 familyId: familyId,
                 title: title.trimmingCharacters(in: .whitespaces),
@@ -194,8 +185,6 @@ struct AddChoreView: View {
                 recurrence: nil,
                 parentUserId: parentId
             )
-
-            // Assign to selected members
             for childId in selected {
                 _ = try await DatabaseAPI.shared.assignChore(
                     choreId: chore.id,
@@ -203,7 +192,6 @@ struct AddChoreView: View {
                     due: nil
                 )
             }
-
             dismiss()
         } catch {
             self.error = error.localizedDescription
@@ -264,7 +252,6 @@ struct AddRewardView: View {
 
 struct ApprovalsView: View {
     @EnvironmentObject var authService: AuthService
-
     @State private var items: [ChoreCompletion] = []
     @State private var isLoading = false
     @State private var error: String?
@@ -272,11 +259,9 @@ struct ApprovalsView: View {
     var body: some View {
         List {
             if let error { Text(error).foregroundColor(.red) }
-
             if items.isEmpty && !isLoading {
                 Text("Nothing to approve right now").foregroundColor(.secondary)
             }
-
             ForEach(items) { c in
                 ApprovalRow(completion: c) { action in
                     Task { await act(on: c, action: action) }
@@ -290,11 +275,9 @@ struct ApprovalsView: View {
 
     private func load() async {
         guard let familyId = authService.currentUser?.familyId else { return }
-        isLoading = true
-        defer { isLoading = false }
+        isLoading = true; defer { isLoading = false }
         do {
             let all = try await DatabaseAPI.shared.fetchCompletionsForFamily(familyId: familyId)
-            // Keep only pending
             self.items = all.filter { $0.status == .pending }
         } catch {
             self.error = error.localizedDescription
@@ -304,10 +287,10 @@ struct ApprovalsView: View {
     private func act(on c: ChoreCompletion, action: ApprovalAction) async {
         guard let reviewer = authService.currentUser?.id else { return }
         do {
-            let newStatus: CompletionStatus = (action == .approve) ? .approved : .rejected
+            let status: CompletionStatus = (action == .approve) ? .approved : .rejected
             _ = try await DatabaseAPI.shared.reviewCompletion(
                 id: c.id,
-                status: newStatus,
+                status: status,
                 reviewedBy: reviewer
             )
             await load()
@@ -329,13 +312,14 @@ private struct ApprovalRow: View {
                 Text("Completion \(completion.id.prefix(6))…")
                     .font(.headline)
                 Text("Status: \(completion.status.rawValue)")
-                    .font(.caption).foregroundColor(.secondary)
+                    .font(.caption)
+                    .foregroundColor(.secondary)
             }
             Spacer()
             HStack(spacing: 8) {
                 Button("Approve") { onAction(.approve) }
                     .buttonStyle(.borderedProminent)
-                Button("Reject")  { onAction(.reject)  }
+                Button("Reject") { onAction(.reject) }
                     .buttonStyle(.bordered)
             }
         }

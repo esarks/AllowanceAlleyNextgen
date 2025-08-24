@@ -7,30 +7,28 @@ struct ReportsView: View {
     @EnvironmentObject var rewardsService: RewardsService
 
     var body: some View {
-        NavigationView {
-            ScrollView {
-                VStack(spacing: 16) {
-                    Text("Family Reports")
-                        .font(.title2)
-                        .fontWeight(.semibold)
+        ScrollView {
+            VStack(spacing: 16) {
+                Text("Family Reports")
+                    .font(.title2)
+                    .fontWeight(.semibold)
 
-                    VStack(alignment: .leading, spacing: 12) {
-                        Text("Coming Soon").font(.headline)
-                        Text("• Weekly progress reports")
-                        Text("• Points earned history")
-                        Text("• Chore completion trends")
-                        Text("• Family achievements")
-                    }
-                    .padding()
-                    .background(Color(UIColor.secondarySystemBackground))
-                    .cornerRadius(12)
-
-                    Spacer()
+                VStack(alignment: .leading, spacing: 12) {
+                    Text("Coming Soon").font(.headline)
+                    Text("• Weekly progress reports")
+                    Text("• Points earned history")
+                    Text("• Chore completion trends")
+                    Text("• Family achievements")
                 }
                 .padding()
+                .background(Color(UIColor.secondarySystemBackground))
+                .cornerRadius(12)
+
+                Spacer()
             }
-            .navigationTitle("Reports")
+            .padding()
         }
+        .navigationTitle("Reports")
     }
 }
 
@@ -44,42 +42,40 @@ struct ParentSettingsView: View {
     }
 
     var body: some View {
-        NavigationView {
-            List {
-                Section("Account") {
+        List {
+            Section("Account") {
+                HStack {
+                    Text("Email"); Spacer()
+                    Text(emailText).foregroundColor(.secondary)
+                }
+                if let familyId = authService.currentUser?.familyId {
                     HStack {
-                        Text("Email"); Spacer()
-                        Text(emailText).foregroundColor(.secondary)
+                        Text("Family ID"); Spacer()
+                        Text(familyId).font(.caption).foregroundColor(.secondary)
                     }
-                    if let familyId = authService.currentUser?.familyId {
-                        HStack {
-                            Text("Family ID"); Spacer()
-                            Text(familyId).font(.caption).foregroundColor(.secondary)
-                        }
-                    }
-                }
-
-                Section("Notifications") {
-                    Toggle("Allow Notifications", isOn: $notificationsService.isAuthorized)
-                        .disabled(true)
-                    Button("Request Notification Permission") {
-                        notificationsService.requestPermissions()
-                    }
-                }
-
-                Section("Data") {
-                    Button("Export Family Data") { /* TODO */ }
-                    Button("Import Data") { /* TODO */ }
-                }
-
-                Section {
-                    Button(role: .destructive) {
-                        Task { await authService.signOut() }
-                    } label: { Text("Sign Out") }
                 }
             }
-            .navigationTitle("Settings")
+
+            Section("Notifications") {
+                Toggle("Allow Notifications", isOn: $notificationsService.isAuthorized)
+                    .disabled(true)
+                Button("Request Notification Permission") {
+                    notificationsService.requestPermissions()
+                }
+            }
+
+            Section("Data") {
+                Button("Export Family Data") { /* TODO */ }
+                Button("Import Data") { /* TODO */ }
+            }
+
+            Section {
+                Button(role: .destructive) {
+                    Task { await authService.signOut() }
+                } label: { Text("Sign Out") }
+            }
         }
+        .navigationTitle("Settings")
     }
 }
 
@@ -89,26 +85,24 @@ struct ChildSettingsView: View {
     @EnvironmentObject var authService: AuthService
 
     var body: some View {
-        NavigationView {
-            List {
-                Section("About Me") {
-                    HStack {
-                        Text("Child ID"); Spacer()
-                        Text(childId).font(.caption).foregroundColor(.secondary)
-                    }
-                }
-                Section("Privacy") {
-                    Text("Your data is safe with us")
-                        .font(.caption).foregroundColor(.secondary)
-                }
-                Section {
-                    Button(role: .destructive) {
-                        Task { await authService.signOut() }
-                    } label: { Text("Sign Out") }
+        List {
+            Section("About Me") {
+                HStack {
+                    Text("Child ID"); Spacer()
+                    Text(childId).font(.caption).foregroundColor(.secondary)
                 }
             }
-            .navigationTitle("Settings")
+            Section("Privacy") {
+                Text("Your data is safe with us")
+                    .font(.caption).foregroundColor(.secondary)
+            }
+            Section {
+                Button(role: .destructive) {
+                    Task { await authService.signOut() }
+                } label: { Text("Sign Out") }
+            }
         }
+        .navigationTitle("Settings")
     }
 }
 
@@ -122,43 +116,41 @@ struct ChildRewardsView: View {
     @State private var error: String?
 
     var body: some View {
-        NavigationView {
-            List {
-                if let error {
-                    Text(error).foregroundColor(.red)
-                }
-                if rewardsService.rewards.isEmpty && !isLoading {
-                    Text("No rewards yet").foregroundColor(.secondary)
-                }
-                ForEach(rewardsService.rewards) { reward in
-                    HStack {
-                        VStack(alignment: .leading, spacing: 4) {
-                            Text(reward.name).font(.headline)
-                            Text("\(reward.costPoints) points")
-                                .font(.caption).foregroundColor(.secondary)
-                        }
-                        Spacer()
-                        Button("Redeem") {
-                            Task {
-                                do {
-                                    try await rewardsService.requestRedemption(
-                                        rewardId: reward.id,
-                                        memberId: childId
-                                    )
-                                } catch {
-                                    self.error = error.localizedDescription
-                                }
+        List {
+            if let error {
+                Text(error).foregroundColor(.red)
+            }
+            if rewardsService.rewards.isEmpty && !isLoading {
+                Text("No rewards yet").foregroundColor(.secondary)
+            }
+            ForEach(rewardsService.rewards) { reward in
+                HStack {
+                    VStack(alignment: .leading, spacing: 4) {
+                        Text(reward.name).font(.headline)
+                        Text("\(reward.costPoints) points")
+                            .font(.caption).foregroundColor(.secondary)
+                    }
+                    Spacer()
+                    Button("Redeem") {
+                        Task {
+                            do {
+                                try await rewardsService.requestRedemption(
+                                    rewardId: reward.id,
+                                    memberId: childId
+                                )
+                            } catch {
+                                self.error = error.localizedDescription
                             }
                         }
-                        .buttonStyle(.borderedProminent)
                     }
-                    .padding(.vertical, 4)
+                    .buttonStyle(.borderedProminent)
                 }
+                .padding(.vertical, 4)
             }
-            .navigationTitle("Rewards")
-            .task { await loadData() }
-            .refreshable { await loadData() }
         }
+        .navigationTitle("Rewards")
+        .task { await loadData() }
+        .refreshable { await loadData() }
     }
 
     private func loadData() async {

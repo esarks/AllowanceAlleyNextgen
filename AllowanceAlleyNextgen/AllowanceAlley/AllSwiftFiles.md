@@ -1,6 +1,6 @@
 # Swift Sources
 
-_Generated on Sat Aug 23 15:43:32 EDT 2025 from directory: ._
+_Generated on Sat Aug 23 20:08:33 EDT 2025 from directory: ._
 
 ## File: AdditionalViews.swift
 
@@ -14,30 +14,28 @@ struct ReportsView: View {
     @EnvironmentObject var rewardsService: RewardsService
 
     var body: some View {
-        NavigationView {
-            ScrollView {
-                VStack(spacing: 16) {
-                    Text("Family Reports")
-                        .font(.title2)
-                        .fontWeight(.semibold)
+        ScrollView {
+            VStack(spacing: 16) {
+                Text("Family Reports")
+                    .font(.title2)
+                    .fontWeight(.semibold)
 
-                    VStack(alignment: .leading, spacing: 12) {
-                        Text("Coming Soon").font(.headline)
-                        Text("• Weekly progress reports")
-                        Text("• Points earned history")
-                        Text("• Chore completion trends")
-                        Text("• Family achievements")
-                    }
-                    .padding()
-                    .background(Color(UIColor.secondarySystemBackground))
-                    .cornerRadius(12)
-
-                    Spacer()
+                VStack(alignment: .leading, spacing: 12) {
+                    Text("Coming Soon").font(.headline)
+                    Text("• Weekly progress reports")
+                    Text("• Points earned history")
+                    Text("• Chore completion trends")
+                    Text("• Family achievements")
                 }
                 .padding()
+                .background(Color(UIColor.secondarySystemBackground))
+                .cornerRadius(12)
+
+                Spacer()
             }
-            .navigationTitle("Reports")
+            .padding()
         }
+        .navigationTitle("Reports")
     }
 }
 
@@ -51,42 +49,40 @@ struct ParentSettingsView: View {
     }
 
     var body: some View {
-        NavigationView {
-            List {
-                Section("Account") {
+        List {
+            Section("Account") {
+                HStack {
+                    Text("Email"); Spacer()
+                    Text(emailText).foregroundColor(.secondary)
+                }
+                if let familyId = authService.currentUser?.familyId {
                     HStack {
-                        Text("Email"); Spacer()
-                        Text(emailText).foregroundColor(.secondary)
+                        Text("Family ID"); Spacer()
+                        Text(familyId).font(.caption).foregroundColor(.secondary)
                     }
-                    if let familyId = authService.currentUser?.familyId {
-                        HStack {
-                            Text("Family ID"); Spacer()
-                            Text(familyId).font(.caption).foregroundColor(.secondary)
-                        }
-                    }
-                }
-
-                Section("Notifications") {
-                    Toggle("Allow Notifications", isOn: $notificationsService.isAuthorized)
-                        .disabled(true)
-                    Button("Request Notification Permission") {
-                        notificationsService.requestPermissions()
-                    }
-                }
-
-                Section("Data") {
-                    Button("Export Family Data") { /* TODO */ }
-                    Button("Import Data") { /* TODO */ }
-                }
-
-                Section {
-                    Button(role: .destructive) {
-                        Task { await authService.signOut() }
-                    } label: { Text("Sign Out") }
                 }
             }
-            .navigationTitle("Settings")
+
+            Section("Notifications") {
+                Toggle("Allow Notifications", isOn: $notificationsService.isAuthorized)
+                    .disabled(true)
+                Button("Request Notification Permission") {
+                    notificationsService.requestPermissions()
+                }
+            }
+
+            Section("Data") {
+                Button("Export Family Data") { /* TODO */ }
+                Button("Import Data") { /* TODO */ }
+            }
+
+            Section {
+                Button(role: .destructive) {
+                    Task { await authService.signOut() }
+                } label: { Text("Sign Out") }
+            }
         }
+        .navigationTitle("Settings")
     }
 }
 
@@ -96,26 +92,24 @@ struct ChildSettingsView: View {
     @EnvironmentObject var authService: AuthService
 
     var body: some View {
-        NavigationView {
-            List {
-                Section("About Me") {
-                    HStack {
-                        Text("Child ID"); Spacer()
-                        Text(childId).font(.caption).foregroundColor(.secondary)
-                    }
-                }
-                Section("Privacy") {
-                    Text("Your data is safe with us")
-                        .font(.caption).foregroundColor(.secondary)
-                }
-                Section {
-                    Button(role: .destructive) {
-                        Task { await authService.signOut() }
-                    } label: { Text("Sign Out") }
+        List {
+            Section("About Me") {
+                HStack {
+                    Text("Child ID"); Spacer()
+                    Text(childId).font(.caption).foregroundColor(.secondary)
                 }
             }
-            .navigationTitle("Settings")
+            Section("Privacy") {
+                Text("Your data is safe with us")
+                    .font(.caption).foregroundColor(.secondary)
+            }
+            Section {
+                Button(role: .destructive) {
+                    Task { await authService.signOut() }
+                } label: { Text("Sign Out") }
+            }
         }
+        .navigationTitle("Settings")
     }
 }
 
@@ -129,43 +123,41 @@ struct ChildRewardsView: View {
     @State private var error: String?
 
     var body: some View {
-        NavigationView {
-            List {
-                if let error {
-                    Text(error).foregroundColor(.red)
-                }
-                if rewardsService.rewards.isEmpty && !isLoading {
-                    Text("No rewards yet").foregroundColor(.secondary)
-                }
-                ForEach(rewardsService.rewards) { reward in
-                    HStack {
-                        VStack(alignment: .leading, spacing: 4) {
-                            Text(reward.name).font(.headline)
-                            Text("\(reward.costPoints) points")
-                                .font(.caption).foregroundColor(.secondary)
-                        }
-                        Spacer()
-                        Button("Redeem") {
-                            Task {
-                                do {
-                                    try await rewardsService.requestRedemption(
-                                        rewardId: reward.id,
-                                        memberId: childId
-                                    )
-                                } catch {
-                                    self.error = error.localizedDescription
-                                }
+        List {
+            if let error {
+                Text(error).foregroundColor(.red)
+            }
+            if rewardsService.rewards.isEmpty && !isLoading {
+                Text("No rewards yet").foregroundColor(.secondary)
+            }
+            ForEach(rewardsService.rewards) { reward in
+                HStack {
+                    VStack(alignment: .leading, spacing: 4) {
+                        Text(reward.name).font(.headline)
+                        Text("\(reward.costPoints) points")
+                            .font(.caption).foregroundColor(.secondary)
+                    }
+                    Spacer()
+                    Button("Redeem") {
+                        Task {
+                            do {
+                                try await rewardsService.requestRedemption(
+                                    rewardId: reward.id,
+                                    memberId: childId
+                                )
+                            } catch {
+                                self.error = error.localizedDescription
                             }
                         }
-                        .buttonStyle(.borderedProminent)
                     }
-                    .padding(.vertical, 4)
+                    .buttonStyle(.borderedProminent)
                 }
+                .padding(.vertical, 4)
             }
-            .navigationTitle("Rewards")
-            .task { await loadData() }
-            .refreshable { await loadData() }
         }
+        .navigationTitle("Rewards")
+        .task { await loadData() }
+        .refreshable { await loadData() }
     }
 
     private func loadData() async {
@@ -197,12 +189,12 @@ struct RewardsView: View {
 ## File: AllowanceAlleyApp.swift
 
 ```swift
-
 import SwiftUI
 
 @main
 struct AllowanceAlleyApp: App {
-    @StateObject private var authService = AuthService.shared
+    // Use singletons; their initializers are private
+    @StateObject private var auth = AuthService.shared
     @StateObject private var familyService = FamilyService.shared
     @StateObject private var choreService = ChoreService.shared
     @StateObject private var rewardsService = RewardsService.shared
@@ -210,12 +202,13 @@ struct AllowanceAlleyApp: App {
     var body: some Scene {
         WindowGroup {
             ContentView()
-                .environmentObject(authService)
+                .environmentObject(auth)
                 .environmentObject(familyService)
                 .environmentObject(choreService)
                 .environmentObject(rewardsService)
-                .task {
-                    authService.initialize()
+                .onAppear {
+                    // If initialize() is async in your codebase, wrap with Task { await auth.initialize() }
+                    auth.initialize()
                 }
         }
     }
@@ -317,7 +310,10 @@ final class AppSupabase {
 ## File: AuthService.swift
 
 ```swift
-// AuthService.swift — Supabase Swift v2 friendly, no mock services
+// =============================================================================
+// FILE: AuthService.swift (Updated with Email/Password auth)
+// =============================================================================
+
 import Foundation
 import Combine
 import Supabase
@@ -384,7 +380,21 @@ final class AuthService: ObservableObject {
         isAuthenticated = true
     }
 
-    // MARK: - Email OTP
+    // MARK: - Email/Password Authentication
+
+    func signUp(email: String, password: String) async throws {
+        let response = try await supabase.client.auth.signUp(email: email, password: password)
+        if let session = response.session {
+            try await loadUserFromSession(session)
+        }
+    }
+
+    func signIn(email: String, password: String) async throws {
+        let session = try await supabase.client.auth.signIn(email: email, password: password)
+        try await loadUserFromSession(session)
+    }
+
+    // MARK: - Email OTP (keep for future use)
 
     func sendCode(to email: String) async throws {
         try await supabase.client.auth.signInWithOTP(email: email, shouldCreateUser: true)
@@ -408,29 +418,97 @@ final class AuthService: ObservableObject {
 ## File: AuthenticationView.swift
 
 ```swift
+// =============================================================================
+// FILE: AuthenticationView.swift (Simple Login/Signup)
+// =============================================================================
 
 import SwiftUI
 
 struct AuthenticationView: View {
     @EnvironmentObject var auth: AuthService
     @State private var email: String = ""
+    @State private var password: String = ""
+    @State private var isSignUp = false
+    @State private var error: String?
+    @State private var isLoading = false
 
     var body: some View {
         VStack(spacing: 24) {
             Text("Allowance Alley").font(.largeTitle).bold()
-            TextField("Email", text: $email)
-                .textInputAutocapitalization(.never)
-                .keyboardType(.emailAddress)
-                .textFieldStyle(.roundedBorder)
-                .frame(maxWidth: 420)
+            
+            // Debug info
+            VStack(alignment: .leading, spacing: 4) {
+                Text("Debug Info:").font(.caption).bold()
+                Text("Auth Status: \(auth.isAuthenticated ? "Authenticated" : "Not Authenticated")")
+                    .font(.caption2)
+                Text("Current User: \(auth.currentUser?.email ?? "None")")
+                    .font(.caption2)
+            }
+            .padding(8)
+            .background(Color.gray.opacity(0.1))
+            .cornerRadius(8)
+            
+            VStack(spacing: 16) {
+                TextField("Email", text: $email)
+                    .textInputAutocapitalization(.never)
+                    .keyboardType(.emailAddress)
+                    .textFieldStyle(.roundedBorder)
+                
+                SecureField("Password", text: $password)
+                    .textFieldStyle(.roundedBorder)
+                
+                Toggle("Sign Up (new user)", isOn: $isSignUp)
+            }
+            .frame(maxWidth: 420)
 
-            Button("Send 6-digit code") {
-                Task { try? await auth.sendCode(to: email) }
+            Button(isLoading ? "Please wait..." : (isSignUp ? "Sign Up" : "Sign In")) {
+                Task { await authenticate() }
             }
             .buttonStyle(.borderedProminent)
-            .disabled(email.isEmpty)
+            .disabled(email.isEmpty || password.isEmpty || isLoading)
+            
+            // Demo Mode Button for immediate testing
+            Button("Demo Mode (Skip Auth)") {
+                createDemoUser()
+            }
+            .buttonStyle(.bordered)
+            .foregroundColor(.orange)
+            
+            if let error {
+                Text("Error: \(error)")
+                    .foregroundColor(.red)
+                    .font(.caption)
+                    .multilineTextAlignment(.center)
+            }
         }
         .padding()
+    }
+    
+    private func authenticate() async {
+        isLoading = true
+        error = nil
+        defer { isLoading = false }
+        
+        do {
+            if isSignUp {
+                try await auth.signUp(email: email, password: password)
+            } else {
+                try await auth.signIn(email: email, password: password)
+            }
+        } catch {
+            self.error = error.localizedDescription
+        }
+    }
+    
+    private func createDemoUser() {
+        // Create a demo user for testing navigation
+        auth.isAuthenticated = true
+        auth.currentUser = AppUser(
+            id: "demo-user-123",
+            email: "demo@example.com",
+            role: .parent,
+            familyId: "demo-family-456"
+        )
     }
 }
 ```
@@ -438,7 +516,6 @@ struct AuthenticationView: View {
 ## File: ChoreService.swift
 
 ```swift
-
 import Foundation
 import Combine
 
@@ -513,13 +590,20 @@ final class ChoreService: ObservableObject {
         pendingApprovals.removeAll { $0.id == updated.id || updated.status != .pending }
         if updated.status == .pending { pendingApprovals.append(updated) }
     }
+
+    // --- Helper used by ChildChoresView ---
+    func getTodayAssignments(for memberId: String) -> [ChoreAssignment] {
+        let cal = Calendar(identifier: .iso8601)
+        return assignments.filter { a in
+            a.memberId == memberId && (a.dueDateAsDate.map { cal.isDateInToday($0) } ?? false)
+        }
+    }
 }
 ```
 
 ## File: ContentView.swift
 
 ```swift
-
 import SwiftUI
 
 struct ContentView: View {
@@ -532,17 +616,21 @@ struct ContentView: View {
         Group {
             if auth.isAuthenticated, let user = auth.currentUser {
                 MainShell(user: user)
-                    .task {
+                    .task(id: user.id) {
+                        // Post-login preload
                         await familyService.ensureFamilyExists()
-                        if let famId = familyService.family?.id ?? user.familyId {
+                        let famId = familyService.family?.id ?? user.familyId
+                        if let famId {
                             await familyService.loadMembers()
                             await choreService.loadAll(for: famId)
                             await rewardsService.loadAll(familyId: famId)
                         }
                     }
             } else if auth.pendingVerificationEmail != nil {
+                // 6-digit code screen
                 EmailVerificationView()
             } else {
+                // Email → "Send 6-digit code"
                 AuthenticationView()
             }
         }
@@ -551,115 +639,105 @@ struct ContentView: View {
 
 struct MainShell: View {
     let user: AppUser
-    @EnvironmentObject var familyService: FamilyService
 
     var body: some View {
-        TabView {
-            ParentDashboardView()
+        switch user.role {
+        case .parent:
+            TabView {
+                NavigationStack {
+                    ParentDashboardView()
+                }
                 .tabItem { Label("Dashboard", systemImage: "house") }
-            ChoresScreen()
+
+                NavigationStack {
+                    ParentChoresView()
+                }
                 .tabItem { Label("Chores", systemImage: "checkmark.circle") }
-            RewardsScreen()
+
+                NavigationStack {
+                    ParentRewardsView()
+                }
                 .tabItem { Label("Rewards", systemImage: "gift") }
-            SettingsScreen()
+
+                NavigationStack {
+                    ParentSettingsView()
+                }
                 .tabItem { Label("Settings", systemImage: "gear") }
-        }
-    }
-}
-
-struct ChoresScreen: View {
-    @EnvironmentObject var chores: ChoreService
-    @EnvironmentObject var family: FamilyService
-    @State private var newTitle = ""
-    @State private var points = 5
-
-    var body: some View {
-        NavigationView {
-            VStack {
-                List(chores.chores, id: \ .id) { c in
-                    VStack(alignment: .leading) {
-                        Text(c.title).font(.headline)
-                        Text("\(c.points) pts").font(.subheadline)
-                    }
-                }
-                .listStyle(.plain)
-
-                HStack {
-                    TextField("New chore title", text: $newTitle).textFieldStyle(.roundedBorder)
-                    Stepper("\(points) pts", value: $points, in: 1...50)
-                    Button("Add") {
-                        Task {
-                            if let famId = family.family?.id {
-                                _ = try? await chores.createChore(familyId: famId, title: newTitle, description: nil, points: points, requirePhoto: false, recurrence: nil)
-                                await chores.loadChores(familyId: famId)
-                                newTitle = ""
-                            }
-                        }
-                    }.buttonStyle(.borderedProminent)
-                }.padding()
             }
-            .navigationTitle("Chores")
+        case .child:
+            ChildMainView(childId: user.id)
         }
     }
 }
 
-struct RewardsScreen: View {
-    @EnvironmentObject var rewards: RewardsService
-    @EnvironmentObject var family: FamilyService
-    @State private var name = ""
-    @State private var cost = 10
+// MARK: - Parent Views
+
+struct ParentChoresView: View {
+    @EnvironmentObject var choreService: ChoreService
+    @EnvironmentObject var familyService: FamilyService
+    @State private var showAddChore = false
+    @State private var showApprovals = false
 
     var body: some View {
-        NavigationView {
-            VStack {
-                List(rewards.rewards, id: \ .id) { r in
+        List {
+            Section("Quick Actions") {
+                Button("Add Chore") { showAddChore = true }
+                Button("Review Approvals (\(choreService.pendingApprovals.count))") { 
+                    showApprovals = true 
+                }
+            }
+            
+            Section("All Chores") {
+                ForEach(choreService.chores) { chore in
+                    VStack(alignment: .leading, spacing: 4) {
+                        Text(chore.title).font(.headline)
+                        if let description = chore.description {
+                            Text(description).font(.caption).foregroundColor(.secondary)
+                        }
+                        Text("\(chore.points) points").font(.caption).foregroundColor(.blue)
+                    }
+                    .padding(.vertical, 2)
+                }
+            }
+        }
+        .navigationTitle("Chores")
+        .sheet(isPresented: $showAddChore) {
+            AddChoreView()
+        }
+        .sheet(isPresented: $showApprovals) {
+            ApprovalsView()
+        }
+    }
+}
+
+struct ParentRewardsView: View {
+    @EnvironmentObject var rewardsService: RewardsService
+    @State private var showAddReward = false
+
+    var body: some View {
+        List {
+            Section("Quick Actions") {
+                Button("Add Reward") { showAddReward = true }
+            }
+            
+            Section("Available Rewards") {
+                ForEach(rewardsService.rewards) { reward in
                     HStack {
-                        Text(r.name).font(.headline)
-                        Spacer()
-                        Text("\(r.costPoints) pts")
-                    }
-                }.listStyle(.plain)
-
-                HStack {
-                    TextField("Reward name", text: $name).textFieldStyle(.roundedBorder)
-                    Stepper("\(cost) pts", value: $cost, in: 1...500)
-                    Button("Add") {
-                        Task {
-                            if let famId = family.family?.id {
-                                try? await rewards.createReward(familyId: famId, name: name, costPoints: cost)
-                                await rewards.loadRewards(familyId: famId)
-                                name = ""
-                            }
+                        VStack(alignment: .leading, spacing: 4) {
+                            Text(reward.name).font(.headline)
+                            Text("\(reward.costPoints) points")
+                                .font(.caption).foregroundColor(.secondary)
                         }
-                    }.buttonStyle(.borderedProminent)
-                }.padding()
+                        Spacer()
+                        Text("Available").foregroundColor(.green)
+                    }
+                    .padding(.vertical, 2)
+                }
             }
-            .navigationTitle("Rewards")
         }
-    }
-}
-
-struct SettingsScreen: View {
-    @EnvironmentObject var auth: AuthService
-    @EnvironmentObject var family: FamilyService
-    @State private var childName = ""
-    @State private var childAge: Int = 10
-
-    var body: some View {
-        Form {
-            Section("Family") {
-                Text(family.family?.name ?? "—")
-                Button("Add Child") {
-                    Task { try? await family.addChild(childName, age: childAge); await family.loadMembers() }
-                }
-                HStack {
-                    TextField("Name", text: $childName)
-                    Stepper("Age: \(childAge)", value: $childAge, in: 3...18)
-                }
-            }
-            Section("Account") {
-                Button("Sign out") { Task { await auth.signOut() } }.foregroundColor(.red)
-            }
+        .navigationTitle("Rewards")
+        .sheet(isPresented: $showAddReward) {
+            AddRewardView()
         }
     }
 }
@@ -1150,12 +1228,17 @@ struct DatabaseAPI {
 ## File: EmailVerificationView.swift
 
 ```swift
+// =============================================================================
+// FILE: EmailVerificationView.swift (with debug info)
+// =============================================================================
 
 import SwiftUI
 
 struct EmailVerificationView: View {
     @EnvironmentObject var auth: AuthService
     @State private var code: String = ""
+    @State private var error: String?
+    @State private var isVerifying = false
 
     var body: some View {
         VStack(spacing: 16) {
@@ -1163,25 +1246,61 @@ struct EmailVerificationView: View {
             Text("Enter the 6-digit code we sent to \(auth.pendingVerificationEmail ?? "")")
                 .multilineTextAlignment(.center)
 
+            // Debug info
+            VStack(alignment: .leading, spacing: 4) {
+                Text("Debug Info:").font(.caption).bold()
+                Text("Auth Status: \(auth.isAuthenticated ? "Authenticated" : "Not Authenticated")")
+                    .font(.caption2)
+                Text("Pending Email: \(auth.pendingVerificationEmail ?? "None")")
+                    .font(.caption2)
+            }
+            .padding(8)
+            .background(Color.gray.opacity(0.1))
+            .cornerRadius(8)
+
             TextField("123456", text: $code)
                 .keyboardType(.numberPad)
                 .textContentType(.oneTimeCode)
                 .textFieldStyle(.roundedBorder)
                 .frame(maxWidth: 200)
 
-            Button("Verify") {
-                Task { try? await auth.verifyCode(code) }
+            Button(isVerifying ? "Verifying..." : "Verify") {
+                Task { await verifyCode() }
             }
             .buttonStyle(.borderedProminent)
-            .disabled(code.count < 6)
+            .disabled(code.count < 6 || isVerifying)
 
             Button("Resend code") {
                 if let email = auth.pendingVerificationEmail {
-                    Task { try? await auth.sendCode(to: email) }
+                    Task { 
+                        do {
+                            try await auth.sendCode(to: email)
+                        } catch {
+                            self.error = error.localizedDescription
+                        }
+                    }
                 }
             }.buttonStyle(.bordered)
+            
+            if let error {
+                Text("Error: \(error)")
+                    .foregroundColor(.red)
+                    .font(.caption)
+            }
         }
         .padding()
+    }
+    
+    private func verifyCode() async {
+        isVerifying = true
+        error = nil
+        defer { isVerifying = false }
+        
+        do {
+            try await auth.verifyCode(code)
+        } catch {
+            self.error = error.localizedDescription
+        }
     }
 }
 ```
@@ -1239,27 +1358,25 @@ import SwiftUI
 @MainActor
 class ImageStore: ObservableObject {
     static let shared = ImageStore()
-    
+
     @Published var isUploading = false
     @Published var uploadProgress: Double = 0.0
-    
+
     private let cache = NSCache<NSString, UIImage>()
-    
+
     private init() {
         cache.countLimit = 100
         cache.totalCostLimit = 50 * 1024 * 1024
     }
-    
+
     func processImage(_ uiImage: UIImage) -> Data? {
         let resizedImage = resizeImage(uiImage, targetSize: AppConfig.thumbnailSize)
         return resizedImage.jpegData(compressionQuality: AppConfig.imageCompressionQuality)
     }
-    
+
     private func resizeImage(_ image: UIImage, targetSize: CGSize) -> UIImage {
         let size = image.size
-        let widthRatio = targetSize.width / size.width
-        let heightRatio = targetSize.height / size.height
-        let ratio = min(widthRatio, heightRatio)
+        let ratio = min(targetSize.width / size.width, targetSize.height / size.height)
         let newSize = CGSize(width: size.width * ratio, height: size.height * ratio)
         UIGraphicsBeginImageContextWithOptions(newSize, false, 1.0)
         image.draw(in: CGRect(origin: .zero, size: newSize))
@@ -1267,33 +1384,37 @@ class ImageStore: ObservableObject {
         UIGraphicsEndImageContext()
         return newImage ?? image
     }
-    
+
     func uploadImage(_ image: UIImage, fileName: String? = nil) async throws -> String {
         guard let imageData = processImage(image) else { throw ImageError.processingFailed }
         let fileSizeMB = Double(imageData.count) / (1024 * 1024)
         guard fileSizeMB <= Double(AppConfig.maxImageSizeMB) else { throw ImageError.fileTooLarge }
+
         isUploading = true
         uploadProgress = 0.0
-        defer { Task { isUploading = false; uploadProgress = 0.0 } }
-        let fileName = fileName ?? "\(UUID().uuidString).jpg"
-        let path = "chore_photos/\(fileName)"
+        defer { Task { @MainActor in self.isUploading = false; self.uploadProgress = 0.0 } }
+
+        let name = fileName ?? "\(UUID().uuidString).jpg"
+        let path = "chore_photos/\(name)"
+
         uploadProgress = 0.5
         let url = try await StorageAPI.shared.uploadImage(imageData, bucket: "photos", path: path)
         uploadProgress = 1.0
+
         cache.setObject(image, forKey: NSString(string: url))
         return url
     }
-    
+
     func downloadImage(from url: String) async throws -> UIImage {
-        if let cachedImage = cache.object(forKey: NSString(string: url)) { return cachedImage }
-        guard let urlComponents = URLComponents(string: url),
-              let last = urlComponents.path.split(separator: "/").last else { throw ImageError.invalidURL }
+        if let cached = cache.object(forKey: NSString(string: url)) { return cached }
+        guard let comps = URLComponents(string: url),
+              let last = comps.path.split(separator: "/").last else { throw ImageError.invalidURL }
         let data = try await StorageAPI.shared.downloadImage(bucket: "photos", path: "chore_photos/\(last)")
         guard let image = UIImage(data: data) else { throw ImageError.invalidImageData }
         cache.setObject(image, forKey: NSString(string: url))
         return image
     }
-    
+
     func clearCache() { cache.removeAllObjects() }
     func getCachedImage(for url: String) -> UIImage? { cache.object(forKey: NSString(string: url)) }
 }
@@ -1316,12 +1437,6 @@ enum ImageError: LocalizedError {
 ## File: MainsView.swift
 
 ```swift
-//
-//  MainsView.swift
-//  AllowanceAlleyNextgen
-//
-//  Created by Paul Marshall on 8/23/25.
-//
 import SwiftUI
 
 // MARK: - Parent Main
@@ -1329,14 +1444,20 @@ import SwiftUI
 struct ParentMainView: View {
     var body: some View {
         TabView {
-            ParentDashboardView()
-                .tabItem { Label("Home", systemImage: "house.fill") }
+            NavigationStack {
+                ParentDashboardView()
+            }
+            .tabItem { Label("Home", systemImage: "house.fill") }
 
-            ReportsView()
-                .tabItem { Label("Reports", systemImage: "chart.bar.fill") }
+            NavigationStack {
+                ReportsView()
+            }
+            .tabItem { Label("Reports", systemImage: "chart.bar.fill") }
 
-            ParentSettingsView()
-                .tabItem { Label("Settings", systemImage: "gearshape.fill") }
+            NavigationStack {
+                ParentSettingsView()
+            }
+            .tabItem { Label("Settings", systemImage: "gearshape.fill") }
         }
     }
 }
@@ -1348,50 +1469,74 @@ struct ChildMainView: View {
 
     var body: some View {
         TabView {
-            ChildChoresView(childId: childId)
-                .tabItem { Label("Chores", systemImage: "checklist") }
+            NavigationStack {
+                ChildChoresView(childId: childId)
+            }
+            .tabItem { Label("Chores", systemImage: "checklist") }
 
-            ChildRewardsView(childId: childId)
-                .tabItem { Label("Rewards", systemImage: "gift.fill") }
+            NavigationStack {
+                ChildRewardsView(childId: childId)
+            }
+            .tabItem { Label("Rewards", systemImage: "gift.fill") }
 
-            ChildSettingsView(childId: childId)
-                .tabItem { Label("Settings", systemImage: "gearshape.fill") }
+            NavigationStack {
+                ChildSettingsView(childId: childId)
+            }
+            .tabItem { Label("Settings", systemImage: "gearshape.fill") }
         }
     }
 }
 
-// MARK: - Child Chores (simple placeholder hooked to your services)
+// MARK: - Child Chores
 
 struct ChildChoresView: View {
     let childId: String
     @EnvironmentObject var choreService: ChoreService
-
+    @EnvironmentObject var familyService: FamilyService
     @State private var todays: [ChoreAssignment] = []
+    @State private var error: String?
 
     var body: some View {
-        NavigationView {
-            List {
+        List {
+            if let error {
+                Text(error).foregroundColor(.red)
+            }
+            
+            Section("Today's Chores") {
                 if todays.isEmpty {
-                    Text("No chores due today 🎉").foregroundColor(.secondary)
+                    Text("No chores due today 🎉")
+                        .foregroundColor(.secondary)
+                        .italic()
                 } else {
-                    ForEach(todays, id: \.id) { a in
-                        VStack(alignment: .leading) {
-                            Text(choreTitle(for: a.choreId))
-                                .font(.headline)
-                            if let due = a.dueDate {
-                                Text("Due: \(due.formatted(date: .abbreviated, time: .shortened))")
-                                    .font(.caption).foregroundColor(.secondary)
-                            }
-                        }
+                    ForEach(todays, id: \.id) { assignment in
+                        ChoreAssignmentRow(assignment: assignment, childId: childId)
                     }
                 }
             }
-            .navigationTitle("My Chores")
-            .task {
-                // use what you already load into the service
-                todays = choreService.getTodayAssignments(for: childId)
+            
+            Section("All My Chores") {
+                ForEach(myAssignments, id: \.id) { assignment in
+                    ChoreAssignmentRow(assignment: assignment, childId: childId)
+                }
             }
         }
+        .navigationTitle("My Chores")
+        .task { await loadChores() }
+        .refreshable { await loadChores() }
+    }
+
+    private var myAssignments: [ChoreAssignment] {
+        choreService.assignments.filter { $0.memberId == childId }
+    }
+
+    private func loadChores() async {
+        guard let familyId = familyService.family?.id else {
+            error = "No family context"
+            return
+        }
+        
+        await choreService.loadAll(for: familyId)
+        todays = choreService.getTodayAssignments(for: childId)
     }
 
     private func choreTitle(for choreId: String) -> String {
@@ -1399,6 +1544,77 @@ struct ChildChoresView: View {
     }
 }
 
+struct ChoreAssignmentRow: View {
+    let assignment: ChoreAssignment
+    let childId: String
+    @EnvironmentObject var choreService: ChoreService
+    @State private var isCompleting = false
+    @State private var error: String?
+
+    private var chore: Chore? {
+        choreService.chores.first(where: { $0.id == assignment.choreId })
+    }
+
+    private var isCompleted: Bool {
+        choreService.completions.contains { completion in
+            completion.assignmentId == assignment.id && completion.status != .rejected
+        }
+    }
+
+    var body: some View {
+        HStack {
+            VStack(alignment: .leading, spacing: 4) {
+                Text(chore?.title ?? "Unknown Chore")
+                    .font(.headline)
+                
+                if let description = chore?.description {
+                    Text(description)
+                        .font(.caption)
+                        .foregroundColor(.secondary)
+                }
+                
+                HStack {
+                    if let due = assignment.dueDateAsDate {
+                        Text("Due: \(due.formatted(date: .abbreviated, time: .omitted))")
+                            .font(.caption)
+                            .foregroundColor(.orange)
+                    }
+                    
+                    if let points = chore?.points {
+                        Text("\(points) points")
+                            .font(.caption)
+                            .foregroundColor(.blue)
+                    }
+                }
+            }
+            
+            Spacer()
+            
+            if isCompleted {
+                Image(systemName: "checkmark.circle.fill")
+                    .foregroundColor(.green)
+            } else {
+                Button("Complete") {
+                    Task { await completeChore() }
+                }
+                .buttonStyle(.borderedProminent)
+                .disabled(isCompleting)
+            }
+        }
+        .padding(.vertical, 2)
+    }
+
+    private func completeChore() async {
+        isCompleting = true
+        defer { isCompleting = false }
+        
+        do {
+            try await choreService.completeChore(assignmentId: assignment.id)
+        } catch {
+            self.error = error.localizedDescription
+        }
+    }
+}
 ```
 
 ## File: Models.swift
@@ -1707,35 +1923,150 @@ struct NotificationSettings {
 ## File: ParentDashboardView.swift
 
 ```swift
-
 import SwiftUI
 
 struct ParentDashboardView: View {
     @EnvironmentObject var family: FamilyService
     @EnvironmentObject var chores: ChoreService
     @EnvironmentObject var rewards: RewardsService
+    @State private var showAddChild = false
+
+    private let columns = Array(repeating: GridItem(.flexible(), spacing: 16), count: 2)
 
     var body: some View {
         ScrollView {
-            VStack(alignment: .leading, spacing: 16) {
-                Text("Family").font(.headline)
-                Text(family.family?.name ?? "—")
-                Divider()
-                Text("Members").font(.headline)
-                ForEach(family.members, id: \ .id) { m in
+            VStack(alignment: .leading, spacing: 20) {
+                // Family Overview
+                VStack(alignment: .leading, spacing: 12) {
+                    Text("Family Overview")
+                        .font(.title2)
+                        .fontWeight(.semibold)
+
                     HStack {
-                        Text(m.childName ?? (m.userId ?? "Member"))
-                        Spacer()
-                        Text(m.role.rawValue.capitalized)
+                        StatCard(
+                            title: "Active Chores",
+                            completed: completedChoresCount,
+                            total: chores.chores.count,
+                            color: .blue
+                        )
+                        
+                        StatCard(
+                            title: "Pending Approvals",
+                            completed: chores.pendingApprovals.count,
+                            total: chores.pendingApprovals.count,
+                            color: .orange
+                        )
                     }
-                    .padding(.vertical, 4)
                 }
-                Divider()
-                Text("Chores: \(chores.chores.count) • Rewards: \(rewards.rewards.count)")
+
+                // Quick Actions
+                VStack(alignment: .leading, spacing: 12) {
+                    Text("Quick Actions")
+                        .font(.title2)
+                        .fontWeight(.semibold)
+
+                    LazyVGrid(columns: columns, spacing: 16) {
+                        QuickActionButton(
+                            icon: "person.badge.plus",
+                            title: "Add Child",
+                            color: .green
+                        ) {
+                            showAddChild = true
+                        }
+
+                        QuickActionButton(
+                            icon: "plus.circle",
+                            title: "Create Chore",
+                            color: .blue
+                        ) {
+                            // Navigate to add chore - we'll implement this
+                        }
+
+                        QuickActionButton(
+                            icon: "gift",
+                            title: "Add Reward",
+                            color: .purple
+                        ) {
+                            // Navigate to add reward
+                        }
+
+                        QuickActionButton(
+                            icon: "checkmark.circle",
+                            title: "Review Tasks",
+                            color: .orange
+                        ) {
+                            // Navigate to approvals
+                        }
+                    }
+                }
+
+                // Family Members
+                VStack(alignment: .leading, spacing: 12) {
+                    Text("Family Members")
+                        .font(.title2)
+                        .fontWeight(.semibold)
+
+                    if family.members.isEmpty {
+                        Text("No family members yet. Add your first child!")
+                            .foregroundColor(.secondary)
+                            .padding()
+                    } else {
+                        ForEach(family.members, id: \.id) { member in
+                            FamilyMemberCard(member: member)
+                        }
+                    }
+                }
+
+                Spacer(minLength: 100)
             }
             .padding()
         }
         .navigationTitle("Dashboard")
+        .sheet(isPresented: $showAddChild) {
+            AddChildView()
+        }
+    }
+
+    private var completedChoresCount: Int {
+        chores.completions.filter { $0.status == .approved }.count
+    }
+}
+
+struct FamilyMemberCard: View {
+    let member: FamilyMember
+
+    var body: some View {
+        HStack(spacing: 12) {
+            Circle()
+                .fill(member.role == .child ? Color.blue.opacity(0.15) : Color.green.opacity(0.15))
+                .frame(width: 40, height: 40)
+                .overlay(
+                    Image(systemName: member.role == .child ? "person.fill" : "crown.fill")
+                        .foregroundColor(member.role == .child ? .blue : .green)
+                )
+            
+            VStack(alignment: .leading, spacing: 4) {
+                Text(member.childName ?? "Family Member")
+                    .font(.headline)
+                Text(member.role.rawValue.capitalized)
+                    .font(.caption)
+                    .foregroundColor(.secondary)
+            }
+            
+            Spacer()
+            
+            if member.role == .child {
+                Text("0 pts") // Placeholder - you'd calculate actual points
+                    .font(.caption)
+                    .padding(.horizontal, 8)
+                    .padding(.vertical, 4)
+                    .background(Color.blue.opacity(0.1))
+                    .cornerRadius(8)
+            }
+        }
+        .padding()
+        .background(Color(UIColor.secondarySystemBackground))
+        .cornerRadius(12)
     }
 }
 ```
@@ -1754,7 +2085,7 @@ struct AddChildView: View {
     @State private var name = ""
     @State private var hasBirthdate = false
     @State private var birthdateValue = Date()
-    @State private var pin = ""               // kept for UI; not sent to DB
+    @State private var pin = ""               // UI only; not saved
 
     @State private var error: String?
     @State private var isSaving = false
@@ -1764,22 +2095,19 @@ struct AddChildView: View {
             Form {
                 Section("Child") {
                     TextField("First name", text: $name)
-
                     Toggle("Set birthdate", isOn: $hasBirthdate)
-
                     if hasBirthdate {
-                        DatePicker("Birthdate",
-                                   selection: $birthdateValue,
-                                   displayedComponents: .date)
+                        DatePicker(
+                            "Birthdate",
+                            selection: $birthdateValue,
+                            displayedComponents: .date
+                        )
                     }
-
                     TextField("4-digit PIN (optional)", text: $pin)
                         .keyboardType(.numberPad)
                 }
 
-                if let error {
-                    Text(error).foregroundColor(.red)
-                }
+                if let error { Text(error).foregroundColor(.red) }
             }
             .navigationTitle("Add Child")
             .toolbar {
@@ -1798,28 +2126,15 @@ struct AddChildView: View {
 
     private func save() async {
         isSaving = true; defer { isSaving = false }
-        guard let familyId = authService.currentUser?.familyId,
-              let parentId = authService.currentUser?.id else {
-            self.error = "Missing family or user context"
-            return
+        guard let familyId = authService.currentUser?.familyId else {
+            self.error = "Missing family context"; return
         }
-
         do {
-            // Prefer the canonical family_members entry for a child
             _ = try await DatabaseAPI.shared.createChildMember(
                 familyId: familyId,
                 childName: name.trimmingCharacters(in: .whitespaces),
                 age: nil
             )
-
-            // Optional: also create a child profile record if you’re using that table
-            // _ = try await DatabaseAPI.shared.createChildProfile(
-            //     parentUserId: parentId,
-            //     name: name.trimmingCharacters(in: .whitespaces),
-            //     birthdate: hasBirthdate ? birthdateValue : nil,
-            //     avatarURL: nil
-            // )
-
             dismiss()
         } catch {
             self.error = error.localizedDescription
@@ -1832,6 +2147,24 @@ struct AddChildView: View {
 private struct SelectableChild: Identifiable, Hashable {
     let id: String
     let name: String
+}
+
+// Small wrapper so the Toggle binding is trivial (helps the type-checker)
+private struct ChildSelectRow: View {
+    let child: SelectableChild
+    @Binding var selected: Set<String>
+
+    var isOn: Bool { selected.contains(child.id) }
+
+    var body: some View {
+        Toggle(child.name, isOn: Binding(
+            get: { isOn },
+            set: { on in
+                if on { selected.insert(child.id) }
+                else { selected.remove(child.id) }
+            }
+        ))
+    }
 }
 
 struct AddChoreView: View {
@@ -1861,28 +2194,17 @@ struct AddChoreView: View {
                 }
 
                 Section("Assign to") {
-                    if isLoadingKids {
-                        ProgressView().progressViewStyle(.circular)
-                    } else if children.isEmpty {
+                    if isLoadingKids { ProgressView() }
+                    else if children.isEmpty {
                         Text("No children yet").foregroundColor(.secondary)
                     } else {
                         ForEach(children) { child in
-                            Toggle(isOn: Binding(
-                                get: { selected.contains(child.id) },
-                                set: { isOn in
-                                    if isOn { selected.insert(child.id) }
-                                    else { selected.remove(child.id) }
-                                })
-                            ) {
-                                Text(child.name)
-                            }
+                            ChildSelectRow(child: child, selected: $selected)
                         }
                     }
                 }
 
-                if let error {
-                    Text(error).foregroundColor(.red)
-                }
+                if let error { Text(error).foregroundColor(.red) }
             }
             .navigationTitle("Add Chore")
             .toolbar {
@@ -1902,17 +2224,14 @@ struct AddChoreView: View {
 
     private func loadChildren() async {
         guard let familyId = authService.currentUser?.familyId else { return }
-        isLoadingKids = true
-        defer { isLoadingKids = false }
+        isLoadingKids = true; defer { isLoadingKids = false }
         do {
-            // Pull family members with child role
             let members = try await DatabaseAPI.shared.listFamilyMembers(
                 familyId: familyId,
                 role: .child
             )
             self.children = members.map {
-                // Try common name keys; fall back to id
-                SelectableChild(id: $0.id, name: ($0.name ?? $0.childName ?? "Child \($0.id.prefix(4))"))
+                SelectableChild(id: $0.id, name: $0.childName ?? "Child \($0.id.prefix(4))")
             }
         } catch {
             self.error = error.localizedDescription
@@ -1922,14 +2241,17 @@ struct AddChoreView: View {
     private func save() async {
         guard let familyId = authService.currentUser?.familyId,
               let parentId = authService.currentUser?.id else {
-            self.error = "Missing family or user context"
+            self.error = "Missing family or user context"; return
+        }
+
+        if selected.isEmpty {
+            self.error = "Select at least one child."
             return
         }
 
         isSaving = true; defer { isSaving = false }
 
         do {
-            // Create chore
             let chore = try await DatabaseAPI.shared.createChore(
                 familyId: familyId,
                 title: title.trimmingCharacters(in: .whitespaces),
@@ -1939,8 +2261,6 @@ struct AddChoreView: View {
                 recurrence: nil,
                 parentUserId: parentId
             )
-
-            // Assign to selected members
             for childId in selected {
                 _ = try await DatabaseAPI.shared.assignChore(
                     choreId: chore.id,
@@ -1948,7 +2268,6 @@ struct AddChoreView: View {
                     due: nil
                 )
             }
-
             dismiss()
         } catch {
             self.error = error.localizedDescription
@@ -2009,7 +2328,6 @@ struct AddRewardView: View {
 
 struct ApprovalsView: View {
     @EnvironmentObject var authService: AuthService
-
     @State private var items: [ChoreCompletion] = []
     @State private var isLoading = false
     @State private var error: String?
@@ -2017,11 +2335,9 @@ struct ApprovalsView: View {
     var body: some View {
         List {
             if let error { Text(error).foregroundColor(.red) }
-
             if items.isEmpty && !isLoading {
                 Text("Nothing to approve right now").foregroundColor(.secondary)
             }
-
             ForEach(items) { c in
                 ApprovalRow(completion: c) { action in
                     Task { await act(on: c, action: action) }
@@ -2035,11 +2351,9 @@ struct ApprovalsView: View {
 
     private func load() async {
         guard let familyId = authService.currentUser?.familyId else { return }
-        isLoading = true
-        defer { isLoading = false }
+        isLoading = true; defer { isLoading = false }
         do {
             let all = try await DatabaseAPI.shared.fetchCompletionsForFamily(familyId: familyId)
-            // Keep only pending
             self.items = all.filter { $0.status == .pending }
         } catch {
             self.error = error.localizedDescription
@@ -2049,10 +2363,10 @@ struct ApprovalsView: View {
     private func act(on c: ChoreCompletion, action: ApprovalAction) async {
         guard let reviewer = authService.currentUser?.id else { return }
         do {
-            let newStatus: CompletionStatus = (action == .approve) ? .approved : .rejected
+            let status: CompletionStatus = (action == .approve) ? .approved : .rejected
             _ = try await DatabaseAPI.shared.reviewCompletion(
                 id: c.id,
-                status: newStatus,
+                status: status,
                 reviewedBy: reviewer
             )
             await load()
@@ -2074,13 +2388,14 @@ private struct ApprovalRow: View {
                 Text("Completion \(completion.id.prefix(6))…")
                     .font(.headline)
                 Text("Status: \(completion.status.rawValue)")
-                    .font(.caption).foregroundColor(.secondary)
+                    .font(.caption)
+                    .foregroundColor(.secondary)
             }
             Spacer()
             HStack(spacing: 8) {
                 Button("Approve") { onAction(.approve) }
                     .buttonStyle(.borderedProminent)
-                Button("Reject")  { onAction(.reject)  }
+                Button("Reject") { onAction(.reject) }
                     .buttonStyle(.bordered)
             }
         }
@@ -2250,9 +2565,34 @@ struct StorageAPI {
     private let client = AppSupabase.shared.client
     private init() {}
 
+    /// Build a public URL for a stored object (nil if it can’t be built).
     func publicURL(bucket: String, path: String) -> URL? {
         // Some SDK versions mark this as `throws`; keep it safe.
         return try? client.storage.from(bucket).getPublicURL(path: path)
+    }
+
+    /// Upload raw image bytes and return the **public URL string**.
+    func uploadImage(_ data: Data, bucket: String, path: String) async throws -> String {
+        // IMPORTANT: Your SDK’s initializer order is cacheControl → contentType → upsert
+        let options = FileOptions(cacheControl: "3600", contentType: "image/jpeg", upsert: true)
+
+        _ = try await client.storage
+            .from(bucket)
+            .upload(path: path, file: data, options: options)
+
+        guard let url = publicURL(bucket: bucket, path: path) else {
+            throw NSError(
+                domain: "Storage",
+                code: -1,
+                userInfo: [NSLocalizedDescriptionKey: "Failed to create public URL"]
+            )
+        }
+        return url.absoluteString
+    }
+
+    /// Download file data for a bucket/path.
+    func downloadImage(bucket: String, path: String) async throws -> Data {
+        try await client.storage.from(bucket).download(path: path)
     }
 }
 ```

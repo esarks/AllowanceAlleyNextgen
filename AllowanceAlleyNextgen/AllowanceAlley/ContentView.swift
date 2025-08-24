@@ -1,4 +1,3 @@
-
 import SwiftUI
 
 struct ContentView: View {
@@ -11,17 +10,21 @@ struct ContentView: View {
         Group {
             if auth.isAuthenticated, let user = auth.currentUser {
                 MainShell(user: user)
-                    .task {
+                    .task(id: user.id) {
+                        // Post-login preload
                         await familyService.ensureFamilyExists()
-                        if let famId = familyService.family?.id ?? user.familyId {
+                        let famId = familyService.family?.id ?? user.familyId
+                        if let famId {
                             await familyService.loadMembers()
                             await choreService.loadAll(for: famId)
                             await rewardsService.loadAll(familyId: famId)
                         }
                     }
             } else if auth.pendingVerificationEmail != nil {
+                // 6-digit code screen
                 EmailVerificationView()
             } else {
+                // Email → "Send 6-digit code"
                 AuthenticationView()
             }
         }
@@ -30,115 +33,105 @@ struct ContentView: View {
 
 struct MainShell: View {
     let user: AppUser
-    @EnvironmentObject var familyService: FamilyService
 
     var body: some View {
-        TabView {
-            ParentDashboardView()
+        switch user.role {
+        case .parent:
+            TabView {
+                NavigationStack {
+                    ParentDashboardView()
+                }
                 .tabItem { Label("Dashboard", systemImage: "house") }
-            ChoresScreen()
+
+                NavigationStack {
+                    ParentChoresView()
+                }
                 .tabItem { Label("Chores", systemImage: "checkmark.circle") }
-            RewardsScreen()
+
+                NavigationStack {
+                    ParentRewardsView()
+                }
                 .tabItem { Label("Rewards", systemImage: "gift") }
-            SettingsScreen()
+
+                NavigationStack {
+                    ParentSettingsView()
+                }
                 .tabItem { Label("Settings", systemImage: "gear") }
-        }
-    }
-}
-
-struct ChoresScreen: View {
-    @EnvironmentObject var chores: ChoreService
-    @EnvironmentObject var family: FamilyService
-    @State private var newTitle = ""
-    @State private var points = 5
-
-    var body: some View {
-        NavigationView {
-            VStack {
-                List(chores.chores, id: \ .id) { c in
-                    VStack(alignment: .leading) {
-                        Text(c.title).font(.headline)
-                        Text("\(c.points) pts").font(.subheadline)
-                    }
-                }
-                .listStyle(.plain)
-
-                HStack {
-                    TextField("New chore title", text: $newTitle).textFieldStyle(.roundedBorder)
-                    Stepper("\(points) pts", value: $points, in: 1...50)
-                    Button("Add") {
-                        Task {
-                            if let famId = family.family?.id {
-                                _ = try? await chores.createChore(familyId: famId, title: newTitle, description: nil, points: points, requirePhoto: false, recurrence: nil)
-                                await chores.loadChores(familyId: famId)
-                                newTitle = ""
-                            }
-                        }
-                    }.buttonStyle(.borderedProminent)
-                }.padding()
             }
-            .navigationTitle("Chores")
+        case .child:
+            ChildMainView(childId: user.id)
         }
     }
 }
 
-struct RewardsScreen: View {
-    @EnvironmentObject var rewards: RewardsService
-    @EnvironmentObject var family: FamilyService
-    @State private var name = ""
-    @State private var cost = 10
+// MARK: - Parent Views
+
+struct ParentChoresView: View {
+    @EnvironmentObject var choreService: ChoreService
+    @EnvironmentObject var familyService: FamilyService
+    @State private var showAddChore = false
+    @State private var showApprovals = false
 
     var body: some View {
-        NavigationView {
-            VStack {
-                List(rewards.rewards, id: \ .id) { r in
+        List {
+            Section("Quick Actions") {
+                Button("Add Chore") { showAddChore = true }
+                Button("Review Approvals (\(choreService.pendingApprovals.count))") { 
+                    showApprovals = true 
+                }
+            }
+            
+            Section("All Chores") {
+                ForEach(choreService.chores) { chore in
+                    VStack(alignment: .leading, spacing: 4) {
+                        Text(chore.title).font(.headline)
+                        if let description = chore.description {
+                            Text(description).font(.caption).foregroundColor(.secondary)
+                        }
+                        Text("\(chore.points) points").font(.caption).foregroundColor(.blue)
+                    }
+                    .padding(.vertical, 2)
+                }
+            }
+        }
+        .navigationTitle("Chores")
+        .sheet(isPresented: $showAddChore) {
+            AddChoreView()
+        }
+        .sheet(isPresented: $showApprovals) {
+            ApprovalsView()
+        }
+    }
+}
+
+struct ParentRewardsView: View {
+    @EnvironmentObject var rewardsService: RewardsService
+    @State private var showAddReward = false
+
+    var body: some View {
+        List {
+            Section("Quick Actions") {
+                Button("Add Reward") { showAddReward = true }
+            }
+            
+            Section("Available Rewards") {
+                ForEach(rewardsService.rewards) { reward in
                     HStack {
-                        Text(r.name).font(.headline)
-                        Spacer()
-                        Text("\(r.costPoints) pts")
-                    }
-                }.listStyle(.plain)
-
-                HStack {
-                    TextField("Reward name", text: $name).textFieldStyle(.roundedBorder)
-                    Stepper("\(cost) pts", value: $cost, in: 1...500)
-                    Button("Add") {
-                        Task {
-                            if let famId = family.family?.id {
-                                try? await rewards.createReward(familyId: famId, name: name, costPoints: cost)
-                                await rewards.loadRewards(familyId: famId)
-                                name = ""
-                            }
+                        VStack(alignment: .leading, spacing: 4) {
+                            Text(reward.name).font(.headline)
+                            Text("\(reward.costPoints) points")
+                                .font(.caption).foregroundColor(.secondary)
                         }
-                    }.buttonStyle(.borderedProminent)
-                }.padding()
+                        Spacer()
+                        Text("Available").foregroundColor(.green)
+                    }
+                    .padding(.vertical, 2)
+                }
             }
-            .navigationTitle("Rewards")
         }
-    }
-}
-
-struct SettingsScreen: View {
-    @EnvironmentObject var auth: AuthService
-    @EnvironmentObject var family: FamilyService
-    @State private var childName = ""
-    @State private var childAge: Int = 10
-
-    var body: some View {
-        Form {
-            Section("Family") {
-                Text(family.family?.name ?? "—")
-                Button("Add Child") {
-                    Task { try? await family.addChild(childName, age: childAge); await family.loadMembers() }
-                }
-                HStack {
-                    TextField("Name", text: $childName)
-                    Stepper("Age: \(childAge)", value: $childAge, in: 3...18)
-                }
-            }
-            Section("Account") {
-                Button("Sign out") { Task { await auth.signOut() } }.foregroundColor(.red)
-            }
+        .navigationTitle("Rewards")
+        .sheet(isPresented: $showAddReward) {
+            AddRewardView()
         }
     }
 }
